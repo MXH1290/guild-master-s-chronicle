@@ -3,6 +3,7 @@ import { useGameState } from '@/hooks/useGameState';
 import { CharacterSelection } from '@/components/game/CharacterSelection';
 import { GameLayout } from '@/components/game/GameLayout';
 import { QuestsPage } from './Quests';
+import { QuestDetailPage } from './QuestDetail';
 import { GuildPage } from './Guild';
 
 const Index = () => {
@@ -36,6 +37,16 @@ const Index = () => {
               activeQuests={gameState.activeQuests}
               completedQuests={gameState.completedQuests}
               log={gameState.log}
+            />
+          } 
+        />
+        <Route 
+          path="/quest/:questId" 
+          element={
+            <QuestDetailPage
+              quests={gameState.quests}
+              characters={gameState.characters}
+              activeQuests={gameState.activeQuests}
               onAssignCharacter={assignCharacterToQuest}
               onRemoveCharacter={removeCharacterFromQuest}
               onStartQuest={startQuest}
