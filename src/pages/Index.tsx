@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useGameState } from '@/hooks/useGameState';
 import { GuildHeader } from '@/components/game/GuildHeader';
 import { CharacterCard } from '@/components/game/CharacterCard';
+import { CharacterSelection } from '@/components/game/CharacterSelection';
 import { QuestCard } from '@/components/game/QuestCard';
 import { ActiveQuestCard } from '@/components/game/ActiveQuestCard';
 import { GameLog } from '@/components/game/GameLog';
@@ -11,7 +12,9 @@ import { cn } from '@/lib/utils';
 
 const Index = () => {
   const { 
+    phase,
     gameState, 
+    startGame,
     assignCharacterToQuest, 
     removeCharacterFromQuest, 
     startQuest, 
@@ -19,6 +22,14 @@ const Index = () => {
   } = useGameState();
   
   const [selectedCharacter, setSelectedCharacter] = useState<string | null>(null);
+
+  // Show character selection screen at game start
+  if (phase === 'selection') {
+    return <CharacterSelection onComplete={startGame} />;
+  }
+
+  // Safety check - should never happen once game starts
+  if (!gameState) return null;
 
   const availableCharacters = gameState.characters.filter(c => 
     !c.status.includes('dead') && 
