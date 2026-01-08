@@ -5,6 +5,7 @@ import { GameLayout } from '@/components/game/GameLayout';
 import { QuestsPage } from './Quests';
 import { QuestDetailPage } from './QuestDetail';
 import { GuildPage } from './Guild';
+import { HeroDetailPage } from './HeroDetail';
 
 const Index = () => {
   const { 
@@ -56,6 +57,10 @@ const Index = () => {
         <Route 
           path="/guild" 
           element={<GuildPage characters={gameState.characters} />} 
+        />
+        <Route 
+          path="/hero/:heroId" 
+          element={<HeroDetailPage characters={gameState.characters} />} 
         />
       </Routes>
     </GameLayout>

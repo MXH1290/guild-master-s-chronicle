@@ -1,6 +1,6 @@
+import { useNavigate } from 'react-router-dom';
 import { Character } from '@/types/game';
 import { CharacterCard } from '@/components/game/CharacterCard';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Users, Skull, Heart } from 'lucide-react';
 
 interface GuildPageProps {
@@ -8,6 +8,7 @@ interface GuildPageProps {
 }
 
 export function GuildPage({ characters }: GuildPageProps) {
+  const navigate = useNavigate();
   const alive = characters.filter(c => !c.status.includes('dead'));
   const dead = characters.filter(c => c.status.includes('dead'));
 
@@ -32,8 +33,9 @@ export function GuildPage({ characters }: GuildPageProps) {
           {alive.map((character, index) => (
             <div 
               key={character.id}
-              className="animate-fade-in"
+              className="animate-fade-in cursor-pointer"
               style={{ animationDelay: `${index * 50}ms` }}
+              onClick={() => navigate(`/hero/${character.id}`)}
             >
               <CharacterCard character={character} />
             </div>
@@ -59,7 +61,13 @@ export function GuildPage({ characters }: GuildPageProps) {
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 opacity-60">
             {dead.map((character) => (
-              <CharacterCard key={character.id} character={character} />
+              <div 
+                key={character.id}
+                className="cursor-pointer"
+                onClick={() => navigate(`/hero/${character.id}`)}
+              >
+                <CharacterCard character={character} />
+              </div>
             ))}
           </div>
         </div>

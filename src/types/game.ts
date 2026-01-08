@@ -8,11 +8,40 @@ export interface Character {
   maxHealth: number;
   stress: number;
   maxStress: number;
+  experience: number;
+  experienceToLevel: number;
   status: CharacterStatus[];
   traits: string[];
   relationships: Relationship[];
   quests: number;
+  questHistory: QuestHistoryEntry[];
+  inventory: InventoryItem[];
+  spells: Spell[];
   portrait: string;
+}
+
+export interface InventoryItem {
+  id: string;
+  name: string;
+  type: 'weapon' | 'armor' | 'accessory' | 'consumable' | 'quest';
+  rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+  description: string;
+  equipped?: boolean;
+}
+
+export interface Spell {
+  id: string;
+  name: string;
+  type: 'attack' | 'heal' | 'buff' | 'debuff' | 'utility';
+  description: string;
+  cost: number; // mana or stress cost
+}
+
+export interface QuestHistoryEntry {
+  questId: string;
+  questName: string;
+  outcome: 'success' | 'failure';
+  day: number;
 }
 
 export interface Attributes {
