@@ -1,6 +1,5 @@
-import { useState } from 'react';
 import { Character, Quest } from '@/types/game';
-import { QuestCard } from '@/components/game/QuestCard';
+import { QuestCardCompact } from '@/components/game/QuestCardCompact';
 import { ActiveQuestCard } from '@/components/game/ActiveQuestCard';
 import { GameLog } from '@/components/game/GameLog';
 import { Scroll, Swords } from 'lucide-react';
@@ -12,9 +11,6 @@ interface QuestsPageProps {
   activeQuests: Quest[];
   completedQuests: number;
   log: GameLogEntry[];
-  onAssignCharacter: (questId: string, characterId: string) => void;
-  onRemoveCharacter: (questId: string, characterId: string) => void;
-  onStartQuest: (questId: string) => void;
 }
 
 export function QuestsPage({
@@ -23,17 +19,8 @@ export function QuestsPage({
   activeQuests,
   completedQuests,
   log,
-  onAssignCharacter,
-  onRemoveCharacter,
-  onStartQuest,
 }: QuestsPageProps) {
-  const [selectedCharacter, setSelectedCharacter] = useState<string | null>(null);
-  
   const availableQuests = quests.filter(q => q.status === 'available');
-  const availableCharacters = characters.filter(c => 
-    !c.status.includes('dead') && 
-    !activeQuests.some(q => q.assignedParty.includes(c.id))
-  );
 
   return (
     <div className="grid grid-cols-12 gap-6">
@@ -47,53 +34,15 @@ export function QuestsPage({
           </span>
         </div>
 
-        {/* Character Quick-Select */}
-        {availableCharacters.length > 0 && (
-          <div className="mb-4 p-3 bg-card/30 border border-border rounded-sm">
-            <p className="text-xs text-muted-foreground mb-2">Select an adventurer to assign:</p>
-            <div className="flex flex-wrap gap-2">
-              {availableCharacters.map((char) => (
-                <button
-                  key={char.id}
-                  onClick={() => setSelectedCharacter(
-                    selectedCharacter === char.id ? null : char.id
-                  )}
-                  className={`
-                    flex items-center gap-2 px-3 py-1.5 rounded-sm text-sm transition-all
-                    border border-border/50 hover:border-primary/50
-                    ${selectedCharacter === char.id 
-                      ? 'bg-primary/20 border-primary text-primary' 
-                      : 'bg-card/50'
-                    }
-                  `}
-                >
-                  <span className="text-lg">{char.portrait}</span>
-                  <span className="font-display">{char.name.split(' ')[0]}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
         {availableQuests.length > 0 ? (
-          <div className="grid gap-4">
+          <div className="space-y-2">
             {availableQuests.map((quest, index) => (
               <div 
                 key={quest.id}
                 className="animate-fade-in"
-                style={{ animationDelay: `${index * 100}ms` }}
+                style={{ animationDelay: `${index * 50}ms` }}
               >
-                <QuestCard
-                  quest={quest}
-                  characters={characters}
-                  selectedCharacter={selectedCharacter}
-                  onAssignCharacter={onAssignCharacter}
-                  onRemoveCharacter={onRemoveCharacter}
-                  onStartQuest={(questId) => {
-                    onStartQuest(questId);
-                    setSelectedCharacter(null);
-                  }}
-                />
+                <QuestCardCompact quest={quest} />
               </div>
             ))}
           </div>
