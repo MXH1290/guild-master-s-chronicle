@@ -1,9 +1,31 @@
 import { useState, useCallback } from 'react';
 import { GameState, Character, Quest, GameLogEntry } from '@/types/game';
-import { initialGameState } from '@/data/initialData';
+import { initialQuests } from '@/data/initialData';
+
+export type GamePhase = 'selection' | 'playing';
 
 export function useGameState() {
-  const [gameState, setGameState] = useState<GameState>(initialGameState);
+  const [phase, setPhase] = useState<GamePhase>('selection');
+  const [gameState, setGameState] = useState<GameState | null>(null);
+
+  const startGame = useCallback((selectedCharacters: Character[]) => {
+    setGameState({
+      guild: {
+        name: 'The Silver Ravens',
+        gold: 500,
+        reputation: 25,
+        day: 1
+      },
+      characters: selectedCharacters,
+      quests: initialQuests.map(q => ({ ...q, assignedParty: [], status: 'available' as const, progress: 0 })),
+      activeQuests: [],
+      completedQuests: 0,
+      log: [
+        { id: '1', day: 1, message: 'The guild hall opens its doors. Your legend begins.', type: 'info' }
+      ]
+    });
+    setPhase('playing');
+  }, []);
 
   const addLogEntry = useCallback((message: string, type: GameLogEntry['type'] = 'info') => {
     setGameState(prev => ({
@@ -228,7 +250,9 @@ export function useGameState() {
   }, []);
 
   return {
+    phase,
     gameState,
+    startGame,
     assignCharacterToQuest,
     removeCharacterFromQuest,
     startQuest,
