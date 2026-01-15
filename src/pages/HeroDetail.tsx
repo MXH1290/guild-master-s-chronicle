@@ -3,6 +3,7 @@ import { Character, Attributes } from '@/types/game';
 import { StatBar } from '@/components/game/StatBar';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { getModifier } from '@/lib/statCalculations';
 import { getTraitByName, getTraitRarityColor, getTraitRarityBg, TraitDefinition } from '@/lib/traits';
@@ -117,29 +118,55 @@ export function HeroDetailPage({ characters }: HeroDetailPageProps) {
                   <span className="text-primary font-display">Level {character.level}</span>
                 </div>
                 <div className="flex gap-2 flex-wrap">
-                  {character.traits.map((traitName) => {
-                    const trait = getTraitByName(traitName);
-                    const rarityColor = trait ? getTraitRarityColor(trait.rarity) : 'text-muted-foreground';
-                    const rarityBg = trait ? getTraitRarityBg(trait.rarity) : 'bg-muted/50 border-muted';
-                    return (
-                      <div 
-                        key={traitName} 
-                        className={cn(
-                          "text-xs px-2 py-1 rounded-sm border",
-                          rarityBg,
-                          rarityColor
-                        )}
-                        title={trait?.description}
-                      >
-                        <div className="font-medium">{traitName}</div>
-                        {trait && (
-                          <div className="text-[10px] opacity-80">
-                            {formatTraitModifiers(trait)}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                  <TooltipProvider delayDuration={200}>
+                    {character.traits.map((traitName) => {
+                      const trait = getTraitByName(traitName);
+                      const rarityColor = trait ? getTraitRarityColor(trait.rarity) : 'text-muted-foreground';
+                      const rarityBg = trait ? getTraitRarityBg(trait.rarity) : 'bg-muted/50 border-muted';
+                      return (
+                        <Tooltip key={traitName}>
+                          <TooltipTrigger asChild>
+                            <div 
+                              className={cn(
+                                "text-xs px-2 py-1 rounded-sm border cursor-help",
+                                rarityBg,
+                                rarityColor
+                              )}
+                            >
+                              <div className="font-medium">{traitName}</div>
+                              {trait && (
+                                <div className="text-[10px] opacity-80">
+                                  {formatTraitModifiers(trait)}
+                                </div>
+                              )}
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom" className="max-w-[220px]">
+                            {trait ? (
+                              <div className="space-y-1.5">
+                                <p className="text-xs">{trait.description}</p>
+                                <div className="flex flex-wrap gap-2 pt-1.5 border-t border-border/50">
+                                  {Object.entries(trait.modifiers).map(([stat, mod]) => (
+                                    <span 
+                                      key={stat}
+                                      className={cn(
+                                        "text-xs font-medium",
+                                        mod >= 0 ? "text-health" : "text-destructive"
+                                      )}
+                                    >
+                                      {mod >= 0 ? '+' : ''}{mod} {statAbbreviations[stat as keyof Attributes]}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-xs">Unknown trait</span>
+                            )}
+                          </TooltipContent>
+                        </Tooltip>
+                      );
+                    })}
+                  </TooltipProvider>
                   {character.status.filter(s => s !== 'healthy').map((status) => (
                     <span 
                       key={status} 
