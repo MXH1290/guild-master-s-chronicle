@@ -84,6 +84,16 @@ const STARTING_ITEMS: Record<CharacterClass, InventoryItem[]> = {
   ],
 };
 
+// Class stat bonuses: primary +4, secondary +2
+const CLASS_STAT_BONUSES: Record<CharacterClass, { primary: keyof Attributes; primaryBonus: number; secondary: keyof Attributes; secondaryBonus: number }> = {
+  Warrior: { primary: 'strength', primaryBonus: 4, secondary: 'constitution', secondaryBonus: 2 },
+  Rogue: { primary: 'dexterity', primaryBonus: 4, secondary: 'constitution', secondaryBonus: 2 },
+  Ranger: { primary: 'dexterity', primaryBonus: 4, secondary: 'wisdom', secondaryBonus: 2 },
+  Bard: { primary: 'charisma', primaryBonus: 4, secondary: 'intelligence', secondaryBonus: 2 },
+  Mage: { primary: 'intelligence', primaryBonus: 4, secondary: 'wisdom', secondaryBonus: 2 },
+  Cleric: { primary: 'wisdom', primaryBonus: 4, secondary: 'strength', secondaryBonus: 2 },
+};
+
 // Generate base stats between 8-12
 function generateBaseStat(): number {
   return Math.floor(Math.random() * 5) + 8; // 8-12 range
@@ -98,6 +108,16 @@ function generateBaseAttributes(): Attributes {
     wisdom: generateBaseStat(),
     charisma: generateBaseStat()
   };
+}
+
+function applyClassBonuses(attributes: Attributes, charClass: CharacterClass): Attributes {
+  const bonuses = CLASS_STAT_BONUSES[charClass];
+  const modified = { ...attributes };
+  
+  modified[bonuses.primary] = Math.min(20, modified[bonuses.primary] + bonuses.primaryBonus);
+  modified[bonuses.secondary] = Math.min(20, modified[bonuses.secondary] + bonuses.secondaryBonus);
+  
+  return modified;
 }
 
 function pickRandom<T>(arr: T[]): T {
@@ -121,7 +141,10 @@ export function generateCharacter(id: string): Character {
   const traitNames = selectedTraits.map(t => t.name);
   
   // Apply trait modifiers to base attributes
-  const attributes = applyTraitModifiers(baseAttributes, traitNames);
+  const attributesWithTraits = applyTraitModifiers(baseAttributes, traitNames);
+  
+  // Apply class bonuses (final step)
+  const attributes = applyClassBonuses(attributesWithTraits, charClass);
   
   // Calculate max health using constitution (uses the stat calculation system)
   const level = 1;
