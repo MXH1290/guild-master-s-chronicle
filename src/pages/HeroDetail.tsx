@@ -4,6 +4,7 @@ import { StatBar } from '@/components/game/StatBar';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
+import { getModifier } from '@/lib/statCalculations';
 import { 
   ArrowLeft, Heart, Brain, Star, Swords, Package, 
   BookOpen, Scroll, Shield, Zap, Sparkles, CheckCircle, XCircle
@@ -20,6 +21,18 @@ const statLabels: Record<string, string> = {
   intelligence: 'INT',
   wisdom: 'WIS',
   charisma: 'CHA',
+};
+
+const getModifierColor = (modifier: number) => {
+  if (modifier >= 3) return 'text-gold';
+  if (modifier >= 1) return 'text-health';
+  if (modifier === 0) return 'text-muted-foreground';
+  return 'text-destructive';
+};
+
+const formatModifier = (modifier: number) => {
+  if (modifier >= 0) return `+${modifier}`;
+  return `${modifier}`;
 };
 
 const spellTypeColors = {
@@ -156,20 +169,26 @@ export function HeroDetailPage({ characters }: HeroDetailPageProps) {
                 Attributes
               </h3>
               <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-                {Object.entries(character.attributes).map(([stat, value]) => (
-                  <div key={stat} className="bg-muted/30 rounded-sm p-3 text-center">
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                      {statLabels[stat]}
+                {Object.entries(character.attributes).map(([stat, value]) => {
+                  const modifier = getModifier(value);
+                  return (
+                    <div key={stat} className="bg-muted/30 rounded-sm p-3 text-center">
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                        {statLabels[stat]}
+                      </div>
+                      <div className={cn(
+                        "font-display text-xl",
+                        value >= 16 && "text-primary",
+                        value <= 8 && "text-destructive"
+                      )}>
+                        {value}
+                      </div>
+                      <div className={cn("text-xs font-medium", getModifierColor(modifier))}>
+                        {formatModifier(modifier)}
+                      </div>
                     </div>
-                    <div className={cn(
-                      "font-display text-xl",
-                      value >= 16 && "text-primary",
-                      value <= 8 && "text-destructive"
-                    )}>
-                      {value}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
