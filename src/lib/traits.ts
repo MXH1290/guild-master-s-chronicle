@@ -282,6 +282,45 @@ export function applyTraitModifiers(baseAttributes: Attributes, traits: string[]
   return modified;
 }
 
+// Calculate net stat change for a trait (sum of all modifiers)
+export function getTraitNetValue(trait: TraitDefinition): number {
+  return Object.values(trait.modifiers).reduce((sum, mod) => sum + mod, 0);
+}
+
+export type TraitValueType = 'positive' | 'neutral' | 'negative';
+
+export function getTraitValueType(trait: TraitDefinition): TraitValueType {
+  const netValue = getTraitNetValue(trait);
+  if (netValue > 0) return 'positive';
+  if (netValue < 0) return 'negative';
+  return 'neutral';
+}
+
+export function getTraitColor(trait: TraitDefinition): string {
+  const valueType = getTraitValueType(trait);
+  switch (valueType) {
+    case 'positive':
+      return 'text-health';
+    case 'negative':
+      return 'text-destructive';
+    case 'neutral':
+      return 'text-muted-foreground';
+  }
+}
+
+export function getTraitBg(trait: TraitDefinition): string {
+  const valueType = getTraitValueType(trait);
+  switch (valueType) {
+    case 'positive':
+      return 'bg-health/15 border-health/40';
+    case 'negative':
+      return 'bg-destructive/15 border-destructive/40';
+    case 'neutral':
+      return 'bg-muted/50 border-muted';
+  }
+}
+
+// Legacy rarity-based colors (kept for potential future use)
 export function getTraitRarityColor(rarity: TraitRarity): string {
   switch (rarity) {
     case 'extremely_rare':

@@ -2,7 +2,7 @@ import { Character, Attributes } from '@/types/game';
 import { StatBar } from './StatBar';
 import { AttributeDisplay } from './AttributeDisplay';
 import { cn } from '@/lib/utils';
-import { getTraitByName, getTraitRarityColor, getTraitRarityBg, TraitDefinition } from '@/lib/traits';
+import { getTraitByName, getTraitColor, getTraitBg, TraitDefinition } from '@/lib/traits';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Heart, Brain, Swords, AlertTriangle } from 'lucide-react';
 
@@ -93,16 +93,16 @@ export function CharacterCard({ character, selected, onClick, compact = false }:
             <TooltipProvider delayDuration={200}>
               {character.traits.map((traitName) => {
                 const trait = getTraitByName(traitName);
-                const rarityColor = trait ? getTraitRarityColor(trait.rarity) : 'text-muted-foreground';
-                const rarityBg = trait ? getTraitRarityBg(trait.rarity) : 'bg-muted/50 border-muted';
+                const traitColor = trait ? getTraitColor(trait) : 'text-muted-foreground';
+                const traitBg = trait ? getTraitBg(trait) : 'bg-muted/50 border-muted';
                 return (
                   <Tooltip key={traitName}>
                     <TooltipTrigger asChild>
                       <span 
                         className={cn(
                           "text-[10px] px-1.5 py-0.5 rounded-sm border cursor-help",
-                          rarityBg,
-                          rarityColor
+                          traitBg,
+                          traitColor
                         )}
                       >
                         {traitName}

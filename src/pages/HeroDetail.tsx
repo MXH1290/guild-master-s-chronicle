@@ -6,7 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { getModifier } from '@/lib/statCalculations';
-import { getTraitByName, getTraitRarityColor, getTraitRarityBg, TraitDefinition } from '@/lib/traits';
+import { getTraitByName, getTraitColor, getTraitBg, TraitDefinition } from '@/lib/traits';
 import { 
   ArrowLeft, Heart, Brain, Star, Swords, Package, 
   BookOpen, Scroll, Shield, Zap, Sparkles, CheckCircle, XCircle
@@ -121,16 +121,16 @@ export function HeroDetailPage({ characters }: HeroDetailPageProps) {
                   <TooltipProvider delayDuration={200}>
                     {character.traits.map((traitName) => {
                       const trait = getTraitByName(traitName);
-                      const rarityColor = trait ? getTraitRarityColor(trait.rarity) : 'text-muted-foreground';
-                      const rarityBg = trait ? getTraitRarityBg(trait.rarity) : 'bg-muted/50 border-muted';
+                      const traitColor = trait ? getTraitColor(trait) : 'text-muted-foreground';
+                      const traitBg = trait ? getTraitBg(trait) : 'bg-muted/50 border-muted';
                       return (
                         <Tooltip key={traitName}>
                           <TooltipTrigger asChild>
                             <div 
                               className={cn(
                                 "text-xs px-2 py-1 rounded-sm border cursor-help",
-                                rarityBg,
-                                rarityColor
+                                traitBg,
+                                traitColor
                               )}
                             >
                               <div className="font-medium">{traitName}</div>
