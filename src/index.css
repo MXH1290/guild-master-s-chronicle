@@ -40,6 +40,12 @@
     --stress: 350 60% 50%;
     --health: 140 45% 40%;
     --gold: 45 85% 55%;
+    
+    /* Rarity colors */
+    --legendary: 280 70% 60%;
+    --rare: 210 70% 55%;
+    --uncommon: 140 50% 45%;
+    --common: 40 10% 55%;
 
     --border: 220 15% 25%;
     --input: 220 15% 20%;

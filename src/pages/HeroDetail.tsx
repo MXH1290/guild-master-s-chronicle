@@ -1,10 +1,11 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { Character } from '@/types/game';
+import { Character, Attributes } from '@/types/game';
 import { StatBar } from '@/components/game/StatBar';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { getModifier } from '@/lib/statCalculations';
+import { getTraitByName, getTraitRarityColor, getTraitRarityBg, TraitDefinition } from '@/lib/traits';
 import { 
   ArrowLeft, Heart, Brain, Star, Swords, Package, 
   BookOpen, Scroll, Shield, Zap, Sparkles, CheckCircle, XCircle
@@ -33,6 +34,24 @@ const getModifierColor = (modifier: number) => {
 const formatModifier = (modifier: number) => {
   if (modifier >= 0) return `+${modifier}`;
   return `${modifier}`;
+};
+
+const statAbbreviations: Record<keyof Attributes, string> = {
+  strength: 'STR',
+  dexterity: 'DEX',
+  constitution: 'CON',
+  intelligence: 'INT',
+  wisdom: 'WIS',
+  charisma: 'CHA',
+};
+
+const formatTraitModifiers = (trait: TraitDefinition): string => {
+  const parts: string[] = [];
+  for (const [stat, mod] of Object.entries(trait.modifiers)) {
+    const abbrev = statAbbreviations[stat as keyof Attributes];
+    parts.push(`${mod >= 0 ? '+' : ''}${mod} ${abbrev}`);
+  }
+  return parts.join(', ');
 };
 
 const spellTypeColors = {
@@ -98,14 +117,29 @@ export function HeroDetailPage({ characters }: HeroDetailPageProps) {
                   <span className="text-primary font-display">Level {character.level}</span>
                 </div>
                 <div className="flex gap-2 flex-wrap">
-                  {character.traits.map((trait) => (
-                    <span 
-                      key={trait} 
-                      className="text-xs px-2 py-0.5 bg-muted rounded-sm text-muted-foreground"
-                    >
-                      {trait}
-                    </span>
-                  ))}
+                  {character.traits.map((traitName) => {
+                    const trait = getTraitByName(traitName);
+                    const rarityColor = trait ? getTraitRarityColor(trait.rarity) : 'text-muted-foreground';
+                    const rarityBg = trait ? getTraitRarityBg(trait.rarity) : 'bg-muted/50 border-muted';
+                    return (
+                      <div 
+                        key={traitName} 
+                        className={cn(
+                          "text-xs px-2 py-1 rounded-sm border",
+                          rarityBg,
+                          rarityColor
+                        )}
+                        title={trait?.description}
+                      >
+                        <div className="font-medium">{traitName}</div>
+                        {trait && (
+                          <div className="text-[10px] opacity-80">
+                            {formatTraitModifiers(trait)}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                   {character.status.filter(s => s !== 'healthy').map((status) => (
                     <span 
                       key={status} 

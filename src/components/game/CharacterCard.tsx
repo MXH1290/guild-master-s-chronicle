@@ -2,6 +2,7 @@ import { Character } from '@/types/game';
 import { StatBar } from './StatBar';
 import { AttributeDisplay } from './AttributeDisplay';
 import { cn } from '@/lib/utils';
+import { getTraitByName, getTraitRarityColor, getTraitRarityBg } from '@/lib/traits';
 import { Heart, Brain, Swords, AlertTriangle } from 'lucide-react';
 
 interface CharacterCardProps {
@@ -71,14 +72,24 @@ export function CharacterCard({ character, selected, onClick, compact = false }:
             <span className="text-primary">Lv.{character.level}</span>
           </div>
           <div className="flex gap-1 mt-1 flex-wrap">
-            {character.traits.map((trait) => (
-              <span 
-                key={trait} 
-                className="text-[10px] px-1.5 py-0.5 bg-muted rounded-sm text-muted-foreground"
-              >
-                {trait}
-              </span>
-            ))}
+            {character.traits.map((traitName) => {
+              const trait = getTraitByName(traitName);
+              const rarityColor = trait ? getTraitRarityColor(trait.rarity) : 'text-muted-foreground';
+              const rarityBg = trait ? getTraitRarityBg(trait.rarity) : 'bg-muted/50 border-muted';
+              return (
+                <span 
+                  key={traitName} 
+                  className={cn(
+                    "text-[10px] px-1.5 py-0.5 rounded-sm border",
+                    rarityBg,
+                    rarityColor
+                  )}
+                  title={trait?.description}
+                >
+                  {traitName}
+                </span>
+              );
+            })}
           </div>
         </div>
       </div>
