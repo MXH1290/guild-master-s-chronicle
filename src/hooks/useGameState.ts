@@ -1,12 +1,14 @@
 import { useState, useCallback } from 'react';
 import { GameState, Character, Quest, GameLogEntry } from '@/types/game';
 import { initialQuests } from '@/data/initialData';
+import { generateCharacter } from '@/lib/characterGenerator';
 
 export type GamePhase = 'selection' | 'playing';
 
 export function useGameState() {
   const [phase, setPhase] = useState<GamePhase>('selection');
   const [gameState, setGameState] = useState<GameState | null>(null);
+  const [recruits, setRecruits] = useState<Character[]>([]);
 
   const startGame = useCallback((selectedCharacters: Character[]) => {
     setGameState({
@@ -249,14 +251,65 @@ export function useGameState() {
     });
   }, []);
 
+  const getLowestLivingLevel = useCallback(() => {
+    if (!gameState) return 1;
+    const livingChars = gameState.characters.filter(c => !c.status.includes('dead'));
+    if (livingChars.length === 0) return 1;
+    return Math.min(...livingChars.map(c => c.level));
+  }, [gameState]);
+
+  const refreshRecruits = useCallback(() => {
+    const level = getLowestLivingLevel();
+    const newRecruits: Character[] = [];
+    
+    for (let i = 0; i < 4; i++) {
+      const recruitId = `recruit-${Date.now()}-${i}`;
+      const recruit = generateCharacter(recruitId);
+      recruit.level = level;
+      newRecruits.push(recruit);
+    }
+    
+    setRecruits(newRecruits);
+  }, [getLowestLivingLevel]);
+
+  const recruitCharacter = useCallback((character: Character, cost: number) => {
+    setGameState(prev => {
+      if (!prev || prev.guild.gold < cost) return prev;
+      
+      return {
+        ...prev,
+        guild: {
+          ...prev.guild,
+          gold: prev.guild.gold - cost
+        },
+        characters: [...prev.characters, { ...character, id: `hero-${Date.now()}` }],
+        log: [
+          ...prev.log,
+          {
+            id: Date.now().toString(),
+            day: prev.guild.day,
+            message: `${character.name} the ${character.class} has joined the guild!`,
+            type: 'success' as const
+          }
+        ]
+      };
+    });
+    
+    // Remove from recruits list
+    setRecruits(prev => prev.filter(r => r.id !== character.id));
+  }, []);
+
   return {
     phase,
     gameState,
+    recruits,
     startGame,
     assignCharacterToQuest,
     removeCharacterFromQuest,
     startQuest,
     advanceDay,
-    addLogEntry
+    addLogEntry,
+    refreshRecruits,
+    recruitCharacter
   };
 }
