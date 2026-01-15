@@ -1,4 +1,6 @@
 import { Character, CharacterClass, Attributes, Spell, InventoryItem } from '@/types/game';
+import { selectRandomTraits, applyTraitModifiers } from './traits';
+import { calculateMaxHealth } from './statCalculations';
 
 const FIRST_NAMES = [
   'Aldric', 'Elara', 'Theron', 'Meridia', 'Grimshaw', 'Lyric', 'Kael', 'Seraphina',
@@ -23,33 +25,6 @@ const CLASS_PORTRAITS: Record<CharacterClass, string[]> = {
   Cleric: ['✨', '☀️', '🙏'],
   Ranger: ['🏹', '🌲', '🦅'],
   Bard: ['🎭', '🎵', '🎶']
-};
-
-const CLASS_TRAITS: Record<CharacterClass, string[][]> = {
-  Warrior: [
-    ['Brave', 'Fearless', 'Bold'],
-    ['Stubborn', 'Hot-headed', 'Proud']
-  ],
-  Rogue: [
-    ['Cunning', 'Sly', 'Quick-witted'],
-    ['Paranoid', 'Greedy', 'Secretive']
-  ],
-  Mage: [
-    ['Brilliant', 'Scholarly', 'Curious'],
-    ['Arrogant', 'Aloof', 'Obsessive']
-  ],
-  Cleric: [
-    ['Compassionate', 'Devout', 'Kind'],
-    ['Righteous', 'Judgmental', 'Pious']
-  ],
-  Ranger: [
-    ['Observant', 'Patient', 'Resourceful'],
-    ['Lone Wolf', 'Distant', 'Wary']
-  ],
-  Bard: [
-    ['Charming', 'Witty', 'Eloquent'],
-    ['Vain', 'Dramatic', 'Meddlesome']
-  ]
 };
 
 const CLASS_SPELLS: Record<CharacterClass, Spell[]> = {
@@ -109,41 +84,20 @@ const STARTING_ITEMS: Record<CharacterClass, InventoryItem[]> = {
   ],
 };
 
-const CLASS_STAT_BIAS: Record<CharacterClass, (keyof Attributes)[]> = {
-  Warrior: ['strength', 'constitution'],
-  Rogue: ['dexterity', 'charisma'],
-  Mage: ['intelligence', 'wisdom'],
-  Cleric: ['wisdom', 'charisma'],
-  Ranger: ['dexterity', 'wisdom'],
-  Bard: ['charisma', 'dexterity']
-};
-
-function rollStat(): number {
-  const rolls = [1, 2, 3, 4].map(() => Math.floor(Math.random() * 6) + 1);
-  rolls.sort((a, b) => b - a);
-  return Math.min(rolls[0] + rolls[1] + rolls[2], 18);
+// Generate base stats between 8-12
+function generateBaseStat(): number {
+  return Math.floor(Math.random() * 5) + 8; // 8-12 range
 }
 
-function generateAttributes(charClass: CharacterClass): Attributes {
-  const biases = CLASS_STAT_BIAS[charClass];
-  
-  const attrs: Attributes = {
-    strength: rollStat(),
-    dexterity: rollStat(),
-    constitution: rollStat(),
-    intelligence: rollStat(),
-    wisdom: rollStat(),
-    charisma: rollStat()
+function generateBaseAttributes(): Attributes {
+  return {
+    strength: generateBaseStat(),
+    dexterity: generateBaseStat(),
+    constitution: generateBaseStat(),
+    intelligence: generateBaseStat(),
+    wisdom: generateBaseStat(),
+    charisma: generateBaseStat()
   };
-  
-  if (biases[0]) {
-    attrs[biases[0]] = Math.min(attrs[biases[0]] + Math.floor(Math.random() * 3) + 1, 18);
-  }
-  if (biases[1]) {
-    attrs[biases[1]] = Math.min(attrs[biases[1]] + Math.floor(Math.random() * 2) + 1, 18);
-  }
-  
-  return attrs;
 }
 
 function pickRandom<T>(arr: T[]): T {
@@ -158,19 +112,20 @@ export function generateCharacter(id: string): Character {
   const firstName = pickRandom(FIRST_NAMES);
   const lastName = pickRandom(LAST_NAMES);
   const charClass = pickRandom(CLASSES);
-  const attributes = generateAttributes(charClass);
   
-  const baseHP = charClass === 'Warrior' ? 12 : 
-                 charClass === 'Ranger' ? 10 :
-                 charClass === 'Cleric' ? 10 :
-                 charClass === 'Rogue' ? 8 :
-                 charClass === 'Bard' ? 8 : 6;
-  const maxHealth = baseHP + Math.floor((attributes.constitution - 10) / 2);
+  // Generate base attributes (8-12 range)
+  const baseAttributes = generateBaseAttributes();
   
-  const traits = [
-    pickRandom(CLASS_TRAITS[charClass][0]),
-    pickRandom(CLASS_TRAITS[charClass][1])
-  ];
+  // Select 2 random traits with rarity weighting
+  const selectedTraits = selectRandomTraits(2);
+  const traitNames = selectedTraits.map(t => t.name);
+  
+  // Apply trait modifiers to base attributes
+  const attributes = applyTraitModifiers(baseAttributes, traitNames);
+  
+  // Calculate max health using constitution (uses the stat calculation system)
+  const level = 1;
+  const maxHealth = calculateMaxHealth(level, attributes);
   
   // Give starting spells (1-2 random from class pool)
   const classSpells = CLASS_SPELLS[charClass];
@@ -190,7 +145,7 @@ export function generateCharacter(id: string): Character {
     experience: 0,
     experienceToLevel: getExperienceForLevel(2),
     status: ['healthy'],
-    traits,
+    traits: traitNames,
     relationships: [],
     quests: 0,
     questHistory: [],

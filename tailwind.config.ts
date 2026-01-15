@@ -46,6 +46,9 @@ export default {
         stress: "hsl(var(--stress))",
         health: "hsl(var(--health))",
         gold: "hsl(var(--gold))",
+        legendary: "hsl(var(--legendary))",
+        rare: "hsl(var(--rare))",
+        uncommon: "hsl(var(--uncommon))",
         parchment: {
           DEFAULT: "hsl(var(--parchment))",
           dark: "hsl(var(--parchment-dark))",
