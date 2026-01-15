@@ -6,16 +6,20 @@ import { QuestsPage } from './Quests';
 import { QuestDetailPage } from './QuestDetail';
 import { GuildPage } from './Guild';
 import { HeroDetailPage } from './HeroDetail';
+import { RecruitmentPage } from './Recruitment';
 
 const Index = () => {
   const { 
     phase,
     gameState, 
+    recruits,
     startGame,
     assignCharacterToQuest, 
     removeCharacterFromQuest, 
     startQuest, 
-    advanceDay 
+    advanceDay,
+    refreshRecruits,
+    recruitCharacter
   } = useGameState();
 
   // Show character selection screen at game start
@@ -61,6 +65,18 @@ const Index = () => {
         <Route 
           path="/hero/:heroId" 
           element={<HeroDetailPage characters={gameState.characters} />} 
+        />
+        <Route 
+          path="/recruitment" 
+          element={
+            <RecruitmentPage 
+              characters={gameState.characters}
+              gold={gameState.guild.gold}
+              recruits={recruits}
+              onRecruit={recruitCharacter}
+              onRefreshRecruits={refreshRecruits}
+            />
+          } 
         />
       </Routes>
     </GameLayout>
