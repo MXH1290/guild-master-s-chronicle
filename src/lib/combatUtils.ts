@@ -89,24 +89,83 @@ export function sortByInitiative(participants: CombatParticipant[]): CombatParti
   });
 }
 
-// Calculate Armor Class (simplified: 10 + DEX modifier)
-export function calculateAC(attributes: Attributes): number {
-  return 10 + getModifier(attributes.dexterity);
+// Check if character has a weapon equipped
+export function hasWeaponEquipped(character: Character): boolean {
+  return character.inventory.some(item => item.type === 'weapon' && item.equipped);
 }
 
-// Calculate attack bonus based on class and primary stat
+// Check if character has armor equipped
+export function hasArmorEquipped(character: Character): boolean {
+  return character.inventory.some(item => item.type === 'armor' && item.equipped);
+}
+
+// Get equipped weapon (if any)
+export function getEquippedWeapon(character: Character): import('@/types/game').InventoryItem | undefined {
+  return character.inventory.find(item => item.type === 'weapon' && item.equipped);
+}
+
+// Get equipped armor (if any)
+export function getEquippedArmor(character: Character): import('@/types/game').InventoryItem | undefined {
+  return character.inventory.find(item => item.type === 'armor' && item.equipped);
+}
+
+// Calculate Armor Class
+// Unarmored: 10 + DEX modifier
+// Armored: Will be based on armor type (to be implemented with armor items)
+export function calculateAC(attributes: Attributes, character?: Character): number {
+  const dexMod = getModifier(attributes.dexterity);
+  
+  // If character provided, check for equipped armor
+  if (character && hasArmorEquipped(character)) {
+    // TODO: Calculate based on armor type when armor items are added
+    // For now, equipped armor gives base 12 + (dex mod / 2, rounded down)
+    return 12 + Math.floor(dexMod / 2);
+  }
+  
+  // Unarmored: 10 + DEX modifier
+  return 10 + dexMod;
+}
+
+// Calculate attack bonus
+// Unarmed: STR modifier + level bonus
+// Armed: Based on weapon type (to be implemented)
 export function getAttackBonus(character: Character): number {
-  const primaryStat = getPrimaryAttackStat(character.class);
-  const statValue = character.attributes[primaryStat];
-  return getModifier(statValue) + Math.floor(character.level / 2);
+  const levelBonus = Math.floor(character.level / 2);
+  
+  if (hasWeaponEquipped(character)) {
+    // TODO: Calculate based on weapon type when weapon items are added
+    // For now, use class primary stat
+    const primaryStat = getPrimaryAttackStat(character.class);
+    const statValue = character.attributes[primaryStat];
+    return getModifier(statValue) + levelBonus;
+  }
+  
+  // Unarmed: STR modifier + level bonus
+  return getModifier(character.attributes.strength) + levelBonus;
 }
 
-// Calculate base damage (simplified: 1d8 + stat modifier)
+// Roll a d4 (1-4)
+export function rollD4(): number {
+  return Math.floor(Math.random() * 4) + 1;
+}
+
+// Calculate base damage
+// Unarmed: 1d4 + STR modifier
+// Armed: Based on weapon type (to be implemented)
 export function calculateBaseDamage(character: Character): number {
-  const primaryStat = getPrimaryAttackStat(character.class);
-  const statValue = character.attributes[primaryStat];
-  const dieRoll = Math.floor(Math.random() * 8) + 1; // 1d8
-  return dieRoll + getModifier(statValue);
+  if (hasWeaponEquipped(character)) {
+    // TODO: Calculate based on weapon type when weapon items are added
+    // For now, use 1d8 + primary stat modifier
+    const primaryStat = getPrimaryAttackStat(character.class);
+    const statValue = character.attributes[primaryStat];
+    const dieRoll = Math.floor(Math.random() * 8) + 1; // 1d8
+    return dieRoll + getModifier(statValue);
+  }
+  
+  // Unarmed: 1d4 + STR modifier
+  const strMod = getModifier(character.attributes.strength);
+  const dieRoll = rollD4();
+  return dieRoll + strMod;
 }
 
 // Perform an attack roll
@@ -128,7 +187,7 @@ export function performAttack(
   }
 
   if (defender.type === 'hero' && defender.characterRef) {
-    targetAC = calculateAC(defender.characterRef.attributes);
+    targetAC = calculateAC(defender.characterRef.attributes, defender.characterRef);
   } else if (defender.type === 'enemy' && defender.enemyRef) {
     targetAC = calculateAC(defender.enemyRef.attributes);
   }

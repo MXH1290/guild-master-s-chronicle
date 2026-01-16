@@ -57,31 +57,16 @@ const CLASS_SPELLS: Record<CharacterClass, Spell[]> = {
   ],
 };
 
+// Starting items - all classes start with empty inventory except Mages who get a spell-book
 const STARTING_ITEMS: Record<CharacterClass, InventoryItem[]> = {
-  Warrior: [
-    { id: 'sw1', name: 'Iron Longsword', type: 'weapon', rarity: 'common', description: 'A sturdy blade for battle.', equipped: true },
-    { id: 'sh1', name: 'Wooden Shield', type: 'armor', rarity: 'common', description: 'Basic protection.', equipped: true },
-  ],
-  Rogue: [
-    { id: 'dg1', name: 'Twin Daggers', type: 'weapon', rarity: 'common', description: 'Quick and deadly.', equipped: true },
-    { id: 'cl1', name: 'Leather Cloak', type: 'armor', rarity: 'common', description: 'Light and stealthy.', equipped: true },
-  ],
+  Warrior: [],
+  Rogue: [],
   Mage: [
-    { id: 'st1', name: 'Apprentice Staff', type: 'weapon', rarity: 'common', description: 'Channels arcane energy.', equipped: true },
-    { id: 'rb1', name: 'Cloth Robes', type: 'armor', rarity: 'common', description: 'Light mage attire.', equipped: true },
+    { id: 'sb1', name: 'Simple Spell-book', type: 'accessory', rarity: 'common', description: 'A basic tome for recording spells.', equipped: false },
   ],
-  Cleric: [
-    { id: 'mc1', name: 'Holy Mace', type: 'weapon', rarity: 'common', description: 'Blessed for battle.', equipped: true },
-    { id: 'ch1', name: 'Chain Mail', type: 'armor', rarity: 'common', description: 'Protective holy armor.', equipped: true },
-  ],
-  Ranger: [
-    { id: 'bw1', name: 'Hunting Bow', type: 'weapon', rarity: 'common', description: 'Accurate and reliable.', equipped: true },
-    { id: 'la1', name: 'Leather Armor', type: 'armor', rarity: 'common', description: 'Flexible protection.', equipped: true },
-  ],
-  Bard: [
-    { id: 'lt1', name: 'Lute', type: 'weapon', rarity: 'common', description: 'A magical instrument.', equipped: true },
-    { id: 'fc1', name: 'Fancy Clothes', type: 'armor', rarity: 'common', description: 'Stylish performance attire.', equipped: true },
-  ],
+  Cleric: [],
+  Ranger: [],
+  Bard: [],
 };
 
 // Class stat bonuses: primary +4, secondary +2
