@@ -1,4 +1,4 @@
-import { Scroll, Users, Swords, UserPlus } from 'lucide-react';
+import { Scroll, Users, Swords, UserPlus, ShoppingBag } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import {
   Sidebar,
@@ -16,6 +16,7 @@ const navItems = [
   { title: 'Quests', url: '/', icon: Scroll },
   { title: 'Guild', url: '/guild', icon: Users },
   { title: 'Recruitment', url: '/recruitment', icon: UserPlus },
+  { title: 'Shop', url: '/shop', icon: ShoppingBag },
 ];
 
 export function GameSidebar() {

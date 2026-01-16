@@ -23,10 +23,22 @@ export interface Character {
 export interface InventoryItem {
   id: string;
   name: string;
-  type: 'weapon' | 'armor' | 'accessory' | 'consumable' | 'quest';
+  type: 'weapon' | 'armor' | 'shield' | 'accessory' | 'consumable' | 'ammunition' | 'quest';
+  subType?: 'light' | 'medium' | 'heavy';
   rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
   description: string;
   equipped?: boolean;
+  // Weapon specific
+  damageDice?: string;
+  damageType?: 'strength' | 'dexterity' | 'strength_or_dexterity' | 'intelligence_or_wisdom';
+  requiresAmmunition?: string;
+  // Armor specific
+  baseAC?: number;
+  addsDexterity?: boolean;
+  maxDexBonus?: number;
+  acBonus?: number;
+  // Ammunition/consumable specific
+  quantity?: number;
 }
 
 export interface Spell {
@@ -115,6 +127,8 @@ export interface Guild {
   gold: number;
   reputation: number;
   day: number;
+  shopLevel: number;
+  lastRestockDay: number;
 }
 
 export interface GameState {
