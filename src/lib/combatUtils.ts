@@ -49,7 +49,8 @@ export function createHeroParticipant(character: Character): CombatParticipant {
     health: character.health,
     maxHealth: character.maxHealth,
     isAlive: character.health > 0,
-    characterRef: character
+    characterRef: character,
+    activeEffects: []
   };
 }
 
@@ -66,7 +67,8 @@ export function createEnemyParticipant(enemy: Enemy): CombatParticipant {
     health: enemy.health,
     maxHealth: enemy.maxHealth,
     isAlive: enemy.health > 0,
-    enemyRef: enemy
+    enemyRef: enemy,
+    activeEffects: []
   };
 }
 

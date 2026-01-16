@@ -17,9 +17,13 @@ import {
   areAllEnemiesDefeated,
   areAllHeroesDefeated,
   getCurrentTurnParticipant,
-  getLivingParticipants
+  getLivingParticipants,
+  rollD20,
+  rollWithModifier
 } from '@/lib/combatUtils';
 import { generateQuestBoss, enemyTemplates } from '@/data/enemies';
+import { getSpellById, SONG_OF_WOE_PROGRESSION, CombatSpell } from '@/data/spells';
+import { getModifier } from '@/lib/statCalculations';
 
 interface UseCombatProps {
   heroes: Character[];
@@ -75,6 +79,12 @@ export function useCombat({
       )
     ];
 
+    // Initialize spell slot usage tracking
+    const spellSlotUsage: Record<string, { level1: number; level2: number; level3: number; level4: number; level5: number }> = {};
+    heroes.forEach(h => {
+      spellSlotUsage[h.id] = { level1: 0, level2: 0, level3: 0, level4: 0, level5: 0 };
+    });
+
     setCombatState({
       phase: 'combat',
       participants: sorted,
@@ -86,7 +96,10 @@ export function useCombat({
       heroes,
       selectedAction: null,
       questId,
-      questName
+      questName,
+      spellSlotUsage,
+      songOfWoeHits: {},
+      participantsActedThisRound: []
     });
   }, [heroes, questId, questName, questDifficulty]);
 
@@ -119,21 +132,36 @@ export function useCombat({
     let nextIndex = state.currentTurnIndex;
     let newRound = state.round;
     let attempts = 0;
+    let newParticipantsActed = [...state.participantsActedThisRound];
+    
+    // Mark current participant as having acted
+    const currentId = state.turnOrder[state.currentTurnIndex];
+    if (!newParticipantsActed.includes(currentId)) {
+      newParticipantsActed.push(currentId);
+    }
     
     do {
       nextIndex = (nextIndex + 1) % state.turnOrder.length;
       if (nextIndex === 0) {
         newRound++;
+        newParticipantsActed = []; // Reset at start of new round
+        // Decrement effect durations
+        state.participants = state.participants.map(p => ({
+          ...p,
+          activeEffects: p.activeEffects
+            .map(e => ({ ...e, duration: e.duration - 1 }))
+            .filter(e => e.duration > 0)
+        }));
       }
       attempts++;
-      // Safety check to prevent infinite loop
       if (attempts > state.turnOrder.length * 2) break;
     } while (!state.participants.find(p => p.id === state.turnOrder[nextIndex])?.isAlive);
 
     return {
       ...state,
       currentTurnIndex: nextIndex,
-      round: newRound
+      round: newRound,
+      participantsActedThisRound: newParticipantsActed
     };
   }, []);
 
