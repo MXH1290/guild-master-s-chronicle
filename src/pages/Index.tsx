@@ -32,7 +32,9 @@ const Index = () => {
     refreshRecruits,
     recruitCharacter,
     completeCombat,
-    purchaseItem
+    purchaseItem,
+    equipItemToCharacter,
+    unequipItem
   } = useGameState();
 
   const handleStartTestCombat = (heroIds: string[], enemyKey: string) => {
@@ -82,7 +84,14 @@ const Index = () => {
         />
         <Route 
           path="/hero/:heroId" 
-          element={<HeroDetailPage characters={gameState.characters} />} 
+          element={
+            <HeroDetailPage 
+              characters={gameState.characters} 
+              guildInventory={gameState.guildInventory}
+              onEquipItem={equipItemToCharacter}
+              onUnequipItem={unequipItem}
+            />
+          } 
         />
         <Route 
           path="/recruitment" 
