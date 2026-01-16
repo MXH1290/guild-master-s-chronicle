@@ -83,8 +83,10 @@ export function CombatPage({
     isHeroTurn,
     initializeCombat,
     executeHeroAttack,
+    executeSpell,
     executeEnemyTurn,
     getValidTargets,
+    getValidAllyTargets,
     endCombat
   } = useCombat({
     heroes: partyMembers,
@@ -177,7 +179,11 @@ export function CombatPage({
               hero={selectedHero}
               isCurrentTurn={selectedHero.id === currentParticipant?.id && isHeroTurn}
               validTargets={selectedHero.id === currentParticipant?.id ? getValidTargets() : []}
+              validAllyTargets={selectedHero.id === currentParticipant?.id ? getValidAllyTargets() : []}
+              spellSlotsUsed={combatState.spellSlotUsage[selectedHero.characterRef?.id || ''] || { level1: 0, level2: 0, level3: 0, level4: 0, level5: 0 }}
+              participantsActedThisRound={combatState.participantsActedThisRound}
               onAttack={executeHeroAttack}
+              onCastSpell={executeSpell}
               disabled={combatState.phase !== 'combat' || selectedHero.id !== currentParticipant?.id}
             />
           )}

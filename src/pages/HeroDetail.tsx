@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { getModifier } from '@/lib/statCalculations';
 import { getTraitByName, getTraitColor, getTraitBg, TraitDefinition } from '@/lib/traits';
 import { canClassEquip } from '@/data/shopItems';
+import { isSpellcaster, getAvailableSpells, getSpellcastingStat } from '@/data/spells';
 import { 
   ArrowLeft, Heart, Brain, Star, Swords, Package, 
   BookOpen, Scroll, Shield, Zap, Sparkles, CheckCircle, XCircle, Shirt, X
@@ -340,35 +341,77 @@ export function HeroDetailPage({ characters, guildInventory, onEquipItem, onUneq
 
         {/* Right Column - Inventory & Spells */}
         <div className="space-y-6">
-          {/* Spells */}
+          {/* Spells - New Combat Spell System */}
           <div className="quest-card rounded-sm p-4">
             <div className="flex items-center gap-2 mb-4">
-              <Sparkles className="w-5 h-5 text-primary" />
-              <h2 className="font-display text-lg">Abilities</h2>
+              <Sparkles className="w-5 h-5 text-purple-400" />
+              <h2 className="font-display text-lg">Spells</h2>
             </div>
             
-            {character.spells.length > 0 ? (
-              <div className="space-y-2">
-                {character.spells.map((spell) => (
-                  <div key={spell.id} className="p-3 bg-muted/20 rounded-sm">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Zap className="w-3 h-3 text-primary" />
-                      <span className="font-display text-sm">{spell.name}</span>
-                      <span className={cn(
-                        "text-[10px] uppercase px-1.5 py-0.5 rounded-sm ml-auto",
-                        spellTypeColors[spell.type]
-                      )}>
-                        {spell.type}
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">{spell.description}</p>
-                    <p className="text-xs text-stress mt-1">Cost: {spell.cost} stress</p>
+            {isSpellcaster(character.class) ? (
+              <div className="space-y-4">
+                {/* Spell Slots Display */}
+                <div className="p-3 bg-muted/20 rounded-sm">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium">Spell Slots</span>
+                    <span className="text-xs text-muted-foreground">
+                      {getSpellcastingStat(character.class)?.toUpperCase()} caster
+                    </span>
                   </div>
-                ))}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Level 1:</span>
+                    <div className="flex gap-1">
+                      {Array.from({ length: character.spellSlots.level1.max }).map((_, i) => (
+                        <div
+                          key={i}
+                          className={cn(
+                            "w-4 h-4 rounded-full border-2",
+                            i < character.spellSlots.level1.current
+                              ? "bg-purple-400 border-purple-400"
+                              : "bg-transparent border-muted-foreground/30"
+                          )}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-xs text-muted-foreground ml-auto">
+                      {character.spellSlots.level1.current}/{character.spellSlots.level1.max}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Known Spells */}
+                <div className="space-y-2">
+                  <span className="text-sm font-medium">Known Spells</span>
+                  {getAvailableSpells(character.class, character.level).map((spell) => {
+                    const spellMod = getSpellcastingStat(character.class);
+                    const modifier = spellMod ? getModifier(character.attributes[spellMod]) : 0;
+                    
+                    return (
+                      <div key={spell.id} className="p-3 bg-muted/20 rounded-sm">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Zap className="w-3 h-3 text-purple-400" />
+                          <span className="font-display text-sm">{spell.name}</span>
+                          <span className="text-xs text-purple-400 ml-auto">
+                            +{modifier} to hit
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">{spell.description}</p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="text-[10px] uppercase px-1.5 py-0.5 rounded-sm bg-purple-500/20 text-purple-400">
+                            Level {spell.level}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {spell.shortDescription}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             ) : (
               <p className="text-sm text-muted-foreground text-center py-4">
-                No abilities learned yet.
+                {character.class}s cannot cast spells.
               </p>
             )}
           </div>
