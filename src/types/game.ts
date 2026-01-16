@@ -138,6 +138,7 @@ export interface GameState {
   activeQuests: Quest[];
   completedQuests: number;
   log: GameLogEntry[];
+  guildInventory: InventoryItem[]; // Items purchased but not yet assigned to characters
 }
 
 export interface GameLogEntry {

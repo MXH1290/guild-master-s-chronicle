@@ -42,7 +42,8 @@ export function useGameState() {
       completedQuests: 0,
       log: [
         { id: '1', day: 1, message: 'The guild hall opens its doors. Your legend begins.', type: 'info' }
-      ]
+      ],
+      guildInventory: []
     });
     generateShopInventory(initialShopLevel);
     setPhase('playing');
@@ -396,12 +397,32 @@ export function useGameState() {
     setGameState(prev => {
       if (!prev || prev.guild.gold < item.price) return prev;
 
+      // Convert ShopItem to InventoryItem for guild storage
+      const inventoryItem: InventoryItem = {
+        id: `inv-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        name: item.name,
+        type: item.type as InventoryItem['type'],
+        subType: item.subType,
+        rarity: item.rarity,
+        description: item.description,
+        equipped: false,
+        damageDice: item.damageDice,
+        damageType: item.damageType,
+        requiresAmmunition: item.requiresAmmunition,
+        baseAC: item.baseAC,
+        addsDexterity: item.addsDexterity,
+        maxDexBonus: item.maxDexBonus,
+        acBonus: item.acBonus,
+        quantity: item.quantity
+      };
+
       return {
         ...prev,
         guild: {
           ...prev.guild,
           gold: prev.guild.gold - item.price
         },
+        guildInventory: [...prev.guildInventory, inventoryItem],
         log: [
           ...prev.log,
           {
@@ -422,6 +443,109 @@ export function useGameState() {
     });
   }, []);
 
+  const equipItemToCharacter = useCallback((characterId: string, itemId: string, slot: 'weapon' | 'armor' | 'shield') => {
+    setGameState(prev => {
+      if (!prev) return prev;
+
+      const itemIndex = prev.guildInventory.findIndex(i => i.id === itemId);
+      if (itemIndex === -1) return prev;
+
+      const item = prev.guildInventory[itemIndex];
+
+      // Update characters
+      const newCharacters = prev.characters.map(char => {
+        if (char.id !== characterId) return char;
+
+        // Remove any currently equipped item of same slot
+        const unequippedItems: InventoryItem[] = [];
+        const newInventory = char.inventory.filter(i => {
+          if (i.equipped && i.type === slot) {
+            unequippedItems.push({ ...i, equipped: false });
+            return false;
+          }
+          return true;
+        });
+
+        // Add the new equipped item
+        return {
+          ...char,
+          inventory: [...newInventory, { ...item, equipped: true }]
+        };
+      });
+
+      // Find character to get name for log
+      const character = prev.characters.find(c => c.id === characterId);
+
+      // Remove from guild inventory, add back any unequipped items
+      const newGuildInventory = [
+        ...prev.guildInventory.slice(0, itemIndex),
+        ...prev.guildInventory.slice(itemIndex + 1)
+      ];
+
+      // Add unequipped items back to guild inventory
+      const returnedItems = prev.characters
+        .find(c => c.id === characterId)
+        ?.inventory.filter(i => i.equipped && i.type === slot)
+        .map(i => ({ ...i, equipped: false })) || [];
+
+      return {
+        ...prev,
+        characters: newCharacters,
+        guildInventory: [...newGuildInventory, ...returnedItems],
+        log: [
+          ...prev.log,
+          {
+            id: Date.now().toString(),
+            day: prev.guild.day,
+            message: `${character?.name} equipped ${item.name}.`,
+            type: 'info' as const
+          }
+        ]
+      };
+    });
+  }, []);
+
+  const unequipItem = useCallback((characterId: string, itemId: string) => {
+    setGameState(prev => {
+      if (!prev) return prev;
+
+      let unequippedItem: InventoryItem | null = null;
+
+      const newCharacters = prev.characters.map(char => {
+        if (char.id !== characterId) return char;
+
+        const itemIndex = char.inventory.findIndex(i => i.id === itemId);
+        if (itemIndex === -1) return char;
+
+        unequippedItem = { ...char.inventory[itemIndex], equipped: false };
+
+        return {
+          ...char,
+          inventory: char.inventory.filter(i => i.id !== itemId)
+        };
+      });
+
+      if (!unequippedItem) return prev;
+
+      const character = prev.characters.find(c => c.id === characterId);
+
+      return {
+        ...prev,
+        characters: newCharacters,
+        guildInventory: [...prev.guildInventory, unequippedItem],
+        log: [
+          ...prev.log,
+          {
+            id: Date.now().toString(),
+            day: prev.guild.day,
+            message: `${character?.name} unequipped ${unequippedItem.name}.`,
+            type: 'info' as const
+          }
+        ]
+      };
+    });
+  }, []);
+
   return {
     phase,
     gameState,
@@ -436,6 +560,8 @@ export function useGameState() {
     refreshRecruits,
     recruitCharacter,
     completeCombat,
-    purchaseItem
+    purchaseItem,
+    equipItemToCharacter,
+    unequipItem
   };
 }

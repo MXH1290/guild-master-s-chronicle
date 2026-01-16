@@ -1,19 +1,25 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Character, Attributes } from '@/types/game';
+import { Character, Attributes, InventoryItem } from '@/types/game';
 import { StatBar } from '@/components/game/StatBar';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { getModifier } from '@/lib/statCalculations';
 import { getTraitByName, getTraitColor, getTraitBg, TraitDefinition } from '@/lib/traits';
+import { canClassEquip } from '@/data/shopItems';
 import { 
   ArrowLeft, Heart, Brain, Star, Swords, Package, 
-  BookOpen, Scroll, Shield, Zap, Sparkles, CheckCircle, XCircle
+  BookOpen, Scroll, Shield, Zap, Sparkles, CheckCircle, XCircle, Shirt, X
 } from 'lucide-react';
 
 interface HeroDetailPageProps {
   characters: Character[];
+  guildInventory: InventoryItem[];
+  onEquipItem: (characterId: string, itemId: string, slot: 'weapon' | 'armor' | 'shield') => void;
+  onUnequipItem: (characterId: string, itemId: string) => void;
 }
 
 const statLabels: Record<string, string> = {
@@ -71,9 +77,10 @@ const rarityColors = {
   legendary: 'text-gold',
 };
 
-export function HeroDetailPage({ characters }: HeroDetailPageProps) {
+export function HeroDetailPage({ characters, guildInventory, onEquipItem, onUnequipItem }: HeroDetailPageProps) {
   const { heroId } = useParams();
   const navigate = useNavigate();
+  const [equipDialogOpen, setEquipDialogOpen] = useState(false);
 
   const character = characters.find(c => c.id === heroId);
 
@@ -90,6 +97,48 @@ export function HeroDetailPage({ characters }: HeroDetailPageProps) {
   }
 
   const xpProgress = (character.experience / character.experienceToLevel) * 100;
+
+  // Get equipped items
+  const equippedWeapon = character.inventory.find(i => i.type === 'weapon' && i.equipped);
+  const equippedArmor = character.inventory.find(i => i.type === 'armor' && i.equipped);
+  const equippedShield = character.inventory.find(i => i.type === 'shield' && i.equipped);
+
+  // Filter guild inventory for items this class can equip
+  const availableWeapons = guildInventory.filter(item => 
+    item.type === 'weapon' && canClassEquipItem(item, character.class)
+  );
+  const availableArmor = guildInventory.filter(item => 
+    item.type === 'armor' && canClassEquipItem(item, character.class)
+  );
+  const availableShields = guildInventory.filter(item => 
+    item.type === 'shield' && canClassEquipItem(item, character.class)
+  );
+
+  function canClassEquipItem(item: InventoryItem, characterClass: Character['class']): boolean {
+    // Use item name to match with shop item restrictions
+    const itemNameToId: Record<string, string> = {
+      'Shortsword': 'shortsword',
+      'Dagger': 'dagger',
+      'Shortbow': 'shortbow',
+      'Staff': 'staff',
+      'Leather Armor': 'leather_armor',
+      'Shield': 'shield',
+      'Chain Mail': 'chain_mail',
+      'Breastplate': 'breastplate',
+      'Arrows (20)': 'arrows'
+    };
+    const shopItemId = itemNameToId[item.name];
+    if (!shopItemId) return true; // Unknown items can be equipped by all
+    return canClassEquip(shopItemId, characterClass);
+  }
+
+  const handleEquip = (itemId: string, slot: 'weapon' | 'armor' | 'shield') => {
+    onEquipItem(character.id, itemId, slot);
+  };
+
+  const handleUnequip = (itemId: string) => {
+    onUnequipItem(character.id, itemId);
+  };
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -324,38 +373,183 @@ export function HeroDetailPage({ characters }: HeroDetailPageProps) {
             )}
           </div>
 
-          {/* Inventory */}
-          <div className="quest-card rounded-sm p-4">
-            <div className="flex items-center gap-2 mb-4">
-              <Package className="w-5 h-5 text-primary" />
-              <h2 className="font-display text-lg">Inventory</h2>
-            </div>
-            
-            {character.inventory.length > 0 ? (
-              <div className="space-y-2">
-                {character.inventory.map((item) => (
-                  <div key={item.id} className="p-3 bg-muted/20 rounded-sm">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className={cn("font-display text-sm", rarityColors[item.rarity])}>
-                        {item.name}
-                      </span>
-                      {item.equipped && (
-                        <Shield className="w-3 h-3 text-primary" />
-                      )}
-                      <span className="text-[10px] uppercase text-muted-foreground ml-auto">
-                        {item.type}
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">{item.description}</p>
+          {/* Equipment & Inventory */}
+          <Dialog open={equipDialogOpen} onOpenChange={setEquipDialogOpen}>
+            <DialogTrigger asChild>
+              <div className="quest-card rounded-sm p-4 cursor-pointer hover:border-primary/50 transition-colors">
+                <div className="flex items-center gap-2 mb-4">
+                  <Package className="w-5 h-5 text-primary" />
+                  <h2 className="font-display text-lg">Equipment</h2>
+                  <span className="text-xs text-muted-foreground ml-auto">Click to manage</span>
+                </div>
+                
+                {/* Current Equipment Display */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 p-2 bg-muted/20 rounded-sm">
+                    <Swords className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Weapon:</span>
+                    <span className={cn("text-sm font-medium", equippedWeapon ? rarityColors[equippedWeapon.rarity] : "text-muted-foreground")}>
+                      {equippedWeapon ? equippedWeapon.name : "None"}
+                    </span>
                   </div>
-                ))}
+                  <div className="flex items-center gap-2 p-2 bg-muted/20 rounded-sm">
+                    <Shirt className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Armor:</span>
+                    <span className={cn("text-sm font-medium", equippedArmor ? rarityColors[equippedArmor.rarity] : "text-muted-foreground")}>
+                      {equippedArmor ? equippedArmor.name : "None"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 p-2 bg-muted/20 rounded-sm">
+                    <Shield className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Shield:</span>
+                    <span className={cn("text-sm font-medium", equippedShield ? rarityColors[equippedShield.rarity] : "text-muted-foreground")}>
+                      {equippedShield ? equippedShield.name : "None"}
+                    </span>
+                  </div>
+                </div>
               </div>
-            ) : (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                Inventory is empty.
-              </p>
-            )}
-          </div>
+            </DialogTrigger>
+            
+            <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="font-display">Manage Equipment - {character.name}</DialogTitle>
+              </DialogHeader>
+              
+              <div className="space-y-6 mt-4">
+                {/* Weapons Section */}
+                <div>
+                  <h3 className="font-display text-sm text-muted-foreground mb-2 flex items-center gap-2">
+                    <Swords className="w-4 h-4" /> Weapons
+                  </h3>
+                  {equippedWeapon && (
+                    <div className="p-3 bg-primary/10 border border-primary/30 rounded-sm mb-2">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className={cn("font-medium", rarityColors[equippedWeapon.rarity])}>
+                            {equippedWeapon.name}
+                          </span>
+                          <span className="text-xs text-primary ml-2">(Equipped)</span>
+                        </div>
+                        <Button size="sm" variant="ghost" onClick={() => handleUnequip(equippedWeapon.id)}>
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">{equippedWeapon.description}</p>
+                    </div>
+                  )}
+                  {availableWeapons.length > 0 ? (
+                    <div className="space-y-2">
+                      {availableWeapons.map(item => (
+                        <div key={item.id} className="p-3 bg-muted/20 rounded-sm flex items-center justify-between">
+                          <div>
+                            <span className={cn("font-medium text-sm", rarityColors[item.rarity])}>
+                              {item.name}
+                            </span>
+                            <p className="text-xs text-muted-foreground">{item.description}</p>
+                          </div>
+                          <Button size="sm" onClick={() => handleEquip(item.id, 'weapon')}>
+                            Equip
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : !equippedWeapon && (
+                    <p className="text-sm text-muted-foreground text-center py-2">
+                      No weapons available in guild storage
+                    </p>
+                  )}
+                </div>
+
+                {/* Armor Section */}
+                <div>
+                  <h3 className="font-display text-sm text-muted-foreground mb-2 flex items-center gap-2">
+                    <Shirt className="w-4 h-4" /> Armor
+                  </h3>
+                  {equippedArmor && (
+                    <div className="p-3 bg-primary/10 border border-primary/30 rounded-sm mb-2">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className={cn("font-medium", rarityColors[equippedArmor.rarity])}>
+                            {equippedArmor.name}
+                          </span>
+                          <span className="text-xs text-primary ml-2">(Equipped)</span>
+                        </div>
+                        <Button size="sm" variant="ghost" onClick={() => handleUnequip(equippedArmor.id)}>
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">{equippedArmor.description}</p>
+                    </div>
+                  )}
+                  {availableArmor.length > 0 ? (
+                    <div className="space-y-2">
+                      {availableArmor.map(item => (
+                        <div key={item.id} className="p-3 bg-muted/20 rounded-sm flex items-center justify-between">
+                          <div>
+                            <span className={cn("font-medium text-sm", rarityColors[item.rarity])}>
+                              {item.name}
+                            </span>
+                            <p className="text-xs text-muted-foreground">{item.description}</p>
+                          </div>
+                          <Button size="sm" onClick={() => handleEquip(item.id, 'armor')}>
+                            Equip
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : !equippedArmor && (
+                    <p className="text-sm text-muted-foreground text-center py-2">
+                      No armor available in guild storage
+                    </p>
+                  )}
+                </div>
+
+                {/* Shield Section */}
+                <div>
+                  <h3 className="font-display text-sm text-muted-foreground mb-2 flex items-center gap-2">
+                    <Shield className="w-4 h-4" /> Shields
+                  </h3>
+                  {equippedShield && (
+                    <div className="p-3 bg-primary/10 border border-primary/30 rounded-sm mb-2">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className={cn("font-medium", rarityColors[equippedShield.rarity])}>
+                            {equippedShield.name}
+                          </span>
+                          <span className="text-xs text-primary ml-2">(Equipped)</span>
+                        </div>
+                        <Button size="sm" variant="ghost" onClick={() => handleUnequip(equippedShield.id)}>
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">{equippedShield.description}</p>
+                    </div>
+                  )}
+                  {availableShields.length > 0 ? (
+                    <div className="space-y-2">
+                      {availableShields.map(item => (
+                        <div key={item.id} className="p-3 bg-muted/20 rounded-sm flex items-center justify-between">
+                          <div>
+                            <span className={cn("font-medium text-sm", rarityColors[item.rarity])}>
+                              {item.name}
+                            </span>
+                            <p className="text-xs text-muted-foreground">{item.description}</p>
+                          </div>
+                          <Button size="sm" onClick={() => handleEquip(item.id, 'shield')}>
+                            Equip
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : !equippedShield && (
+                    <p className="text-sm text-muted-foreground text-center py-2">
+                      No shields available in guild storage
+                    </p>
+                  )}
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
 
           {/* Stats Summary */}
           <div className="bg-card/30 border border-border rounded-sm p-4">
