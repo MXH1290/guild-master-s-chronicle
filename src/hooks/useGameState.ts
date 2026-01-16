@@ -299,6 +299,60 @@ export function useGameState() {
     setRecruits(prev => prev.filter(r => r.id !== character.id));
   }, []);
 
+  const completeCombat = useCallback((
+    questId: string,
+    result: 'victory' | 'defeat',
+    survivors: string[],
+    deadHeroes: string[],
+    xpReward: number,
+    goldReward: number
+  ) => {
+    setGameState(prev => {
+      if (!prev) return prev;
+
+      let newCharacters = prev.characters.map(char => {
+        if (deadHeroes.includes(char.id)) {
+          return { ...char, health: 0, status: ['dead'] as Character['status'] };
+        }
+        if (survivors.includes(char.id)) {
+          return {
+            ...char,
+            experience: char.experience + Math.floor(xpReward / survivors.length),
+            quests: char.quests + 1
+          };
+        }
+        return char;
+      });
+
+      const quest = [...prev.quests, ...prev.activeQuests].find(q => q.id === questId);
+      const questName = quest?.name || 'Unknown Quest';
+
+      return {
+        ...prev,
+        guild: {
+          ...prev.guild,
+          gold: prev.guild.gold + goldReward,
+          reputation: prev.guild.reputation + (result === 'victory' ? (quest?.rewards.reputation || 5) : 0)
+        },
+        characters: newCharacters,
+        activeQuests: prev.activeQuests.filter(q => q.id !== questId),
+        quests: prev.quests.filter(q => q.id !== questId),
+        completedQuests: result === 'victory' ? prev.completedQuests + 1 : prev.completedQuests,
+        log: [
+          ...prev.log,
+          {
+            id: Date.now().toString(),
+            day: prev.guild.day,
+            message: result === 'victory' 
+              ? `"${questName}" completed! Gained ${goldReward} gold and ${xpReward} XP.`
+              : `"${questName}" failed. The party was defeated.`,
+            type: result === 'victory' ? 'success' as const : 'danger' as const
+          }
+        ]
+      };
+    });
+  }, []);
+
   return {
     phase,
     gameState,
@@ -310,6 +364,7 @@ export function useGameState() {
     advanceDay,
     addLogEntry,
     refreshRecruits,
-    recruitCharacter
+    recruitCharacter,
+    completeCombat
   };
 }

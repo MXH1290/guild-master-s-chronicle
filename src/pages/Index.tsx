@@ -7,6 +7,7 @@ import { QuestDetailPage } from './QuestDetail';
 import { GuildPage } from './Guild';
 import { HeroDetailPage } from './HeroDetail';
 import { RecruitmentPage } from './Recruitment';
+import { CombatPage } from './Combat';
 
 const Index = () => {
   const { 
@@ -19,7 +20,8 @@ const Index = () => {
     startQuest, 
     advanceDay,
     refreshRecruits,
-    recruitCharacter
+    recruitCharacter,
+    completeCombat
   } = useGameState();
 
   // Show character selection screen at game start
@@ -75,6 +77,17 @@ const Index = () => {
               recruits={recruits}
               onRecruit={recruitCharacter}
               onRefreshRecruits={refreshRecruits}
+            />
+          } 
+        />
+        <Route 
+          path="/combat/:questId" 
+          element={
+            <CombatPage
+              characters={gameState.characters}
+              quests={gameState.quests}
+              activeQuests={gameState.activeQuests}
+              onCombatComplete={completeCombat}
             />
           } 
         />
