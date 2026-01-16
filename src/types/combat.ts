@@ -40,6 +40,17 @@ export interface CombatParticipant {
   isAlive: boolean;
   characterRef?: Character;
   enemyRef?: Enemy;
+  // Active buffs/debuffs
+  activeEffects: ActiveEffect[];
+}
+
+export interface ActiveEffect {
+  id: string;
+  type: 'ac_bonus' | 'attack_bonus' | 'advantage_next_attack' | 'grant_advantage' | 'taunt';
+  value?: number;
+  duration: number; // Rounds remaining
+  sourceId: string; // Who applied this effect
+  targetId?: string; // For effects that target others (like taunt)
 }
 
 export interface CombatAction {
@@ -55,7 +66,7 @@ export interface CombatLogEntry {
   turn: number;
   actorName: string;
   message: string;
-  type: 'attack' | 'damage' | 'heal' | 'miss' | 'critical' | 'death' | 'info' | 'victory' | 'defeat';
+  type: 'attack' | 'damage' | 'heal' | 'miss' | 'critical' | 'death' | 'info' | 'victory' | 'defeat' | 'spell' | 'buff' | 'debuff';
   damage?: number;
   healing?: number;
 }
@@ -74,6 +85,10 @@ export interface CombatState {
   selectedAction: CombatAction | null;
   questId: string;
   questName: string;
+  // Spell tracking
+  spellSlotUsage: Record<string, { level1: number; level2: number; level3: number; level4: number; level5: number }>;
+  songOfWoeHits: Record<string, number>; // Track Song of Woe hits per caster per enemy
+  participantsActedThisRound: string[]; // Track who has already acted this round (for Inspire)
 }
 
 // D20 roll result

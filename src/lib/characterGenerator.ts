@@ -1,6 +1,7 @@
-import { Character, CharacterClass, Attributes, Spell, InventoryItem } from '@/types/game';
+import { Character, CharacterClass, Attributes, Spell, InventoryItem, SpellSlots } from '@/types/game';
 import { selectRandomTraits, applyTraitModifiers } from './traits';
 import { calculateMaxHealth } from './statCalculations';
+import { isSpellcaster, getAvailableSpells, getSpellSlots } from '@/data/spells';
 
 const FIRST_NAMES = [
   'Aldric', 'Elara', 'Theron', 'Meridia', 'Grimshaw', 'Lyric', 'Kael', 'Seraphina',
@@ -135,10 +136,25 @@ export function generateCharacter(id: string): Character {
   const level = 1;
   const maxHealth = calculateMaxHealth(level, attributes);
   
-  // Give starting spells (1-2 random from class pool)
+  // Give starting spells (1-2 random from class pool) - legacy system
   const classSpells = CLASS_SPELLS[charClass];
   const numSpells = Math.min(classSpells.length, Math.floor(Math.random() * 2) + 1);
   const spells = [...classSpells].sort(() => Math.random() - 0.5).slice(0, numSpells);
+  
+  // New spell system for casters
+  const isCaster = isSpellcaster(charClass);
+  const knownSpellIds = isCaster 
+    ? getAvailableSpells(charClass, level).map(s => s.id)
+    : [];
+  
+  // Calculate spell slots
+  const spellSlots: SpellSlots = {
+    level1: { current: getSpellSlots(level, 1), max: getSpellSlots(level, 1) },
+    level2: { current: getSpellSlots(level, 2), max: getSpellSlots(level, 2) },
+    level3: { current: getSpellSlots(level, 3), max: getSpellSlots(level, 3) },
+    level4: { current: getSpellSlots(level, 4), max: getSpellSlots(level, 4) },
+    level5: { current: getSpellSlots(level, 5), max: getSpellSlots(level, 5) },
+  };
   
   return {
     id,
@@ -159,6 +175,8 @@ export function generateCharacter(id: string): Character {
     questHistory: [],
     inventory: [...STARTING_ITEMS[charClass]],
     spells,
+    spellSlots,
+    knownSpellIds,
     portrait: pickRandom(CLASS_PORTRAITS[charClass])
   };
 }

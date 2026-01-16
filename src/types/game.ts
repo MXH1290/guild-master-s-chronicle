@@ -1,3 +1,11 @@
+export interface SpellSlots {
+  level1: { current: number; max: number };
+  level2: { current: number; max: number };
+  level3: { current: number; max: number };
+  level4: { current: number; max: number };
+  level5: { current: number; max: number };
+}
+
 export interface Character {
   id: string;
   name: string;
@@ -17,6 +25,8 @@ export interface Character {
   questHistory: QuestHistoryEntry[];
   inventory: InventoryItem[];
   spells: Spell[];
+  spellSlots: SpellSlots;
+  knownSpellIds: string[]; // IDs of spells from the spell data
   portrait: string;
 }
 

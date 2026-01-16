@@ -17,7 +17,10 @@ const logTypeConfig: Record<CombatLogEntry['type'], { icon: typeof Swords; color
   death: { icon: Skull, color: 'text-destructive' },
   info: { icon: Info, color: 'text-muted-foreground' },
   victory: { icon: Trophy, color: 'text-health' },
-  defeat: { icon: Skull, color: 'text-destructive' }
+  defeat: { icon: Skull, color: 'text-destructive' },
+  spell: { icon: Sparkles, color: 'text-purple-400' },
+  buff: { icon: Sparkles, color: 'text-blue-400' },
+  debuff: { icon: Target, color: 'text-orange-400' }
 };
 
 export function CombatLog({ log }: CombatLogProps) {
