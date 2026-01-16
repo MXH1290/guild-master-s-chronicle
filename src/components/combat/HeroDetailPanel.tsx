@@ -1,32 +1,55 @@
 import { CombatParticipant } from '@/types/combat';
 import { cn } from '@/lib/utils';
-import { Heart, Shield, Swords, Package } from 'lucide-react';
+import { Heart, Shield, Swords, Package, Sparkles } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { getModifier } from '@/lib/statCalculations';
 import { getEquippedWeapon, getEquippedArmor, getEquippedShield, calculateAC, getAttackBonus } from '@/lib/combatUtils';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { SpellPanel } from './SpellPanel';
+import { isSpellcaster } from '@/data/spells';
 
 interface HeroDetailPanelProps {
   hero: CombatParticipant;
   isCurrentTurn: boolean;
   validTargets: CombatParticipant[];
+  validAllyTargets: CombatParticipant[];
+  spellSlotsUsed: { level1: number; level2: number; level3: number; level4: number; level5: number };
+  participantsActedThisRound: string[];
   onAttack: (targetId: string) => void;
+  onCastSpell: (spellId: string, targetId?: string) => void;
   disabled?: boolean;
 }
 
 export function HeroDetailPanel({ 
   hero, 
   isCurrentTurn, 
-  validTargets, 
+  validTargets,
+  validAllyTargets,
+  spellSlotsUsed,
+  participantsActedThisRound,
   onAttack,
+  onCastSpell,
   disabled 
 }: HeroDetailPanelProps) {
   const character = hero.characterRef;
   if (!character) return null;
 
   const healthPercent = (hero.health / hero.maxHealth) * 100;
-  const ac = calculateAC(character.attributes, character);
-  const attackBonus = getAttackBonus(character);
+  
+  // Calculate AC including active effects
+  let ac = calculateAC(character.attributes, character);
+  const acBonus = hero.activeEffects
+    .filter(e => e.type === 'ac_bonus')
+    .reduce((sum, e) => sum + (e.value || 0), 0);
+  ac += acBonus;
+
+  // Calculate attack bonus including active effects
+  let attackBonus = getAttackBonus(character);
+  const attackBonusEffect = hero.activeEffects
+    .filter(e => e.type === 'attack_bonus')
+    .reduce((sum, e) => sum + (e.value || 0), 0);
+  attackBonus += attackBonusEffect;
   
   const weapon = getEquippedWeapon(character);
   const armor = getEquippedArmor(character);
@@ -59,6 +82,9 @@ export function HeroDetailPanel({
     damageString = `${damageDice}${modifier >= 0 ? '+' : ''}${modifier}`;
   }
 
+  const isCaster = isSpellcaster(character.class);
+  const level1SlotsRemaining = character.spellSlots.level1.max - spellSlotsUsed.level1;
+
   return (
     <div className={cn(
       "bg-card border-2 rounded-xl p-6 h-full flex flex-col",
@@ -72,11 +98,32 @@ export function HeroDetailPanel({
             Level {character.level} {character.class}
           </p>
         </div>
-        {isCurrentTurn && (
-          <span className="px-3 py-1 bg-primary/20 text-primary rounded-full text-sm font-medium animate-pulse">
-            Your Turn
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {/* Spell Slots indicator for casters */}
+          {isCaster && (
+            <div className="flex items-center gap-1 px-2 py-1 bg-purple-500/20 rounded-full">
+              <Sparkles className="w-3 h-3 text-purple-400" />
+              <div className="flex gap-0.5">
+                {Array.from({ length: character.spellSlots.level1.max }).map((_, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      "w-2 h-2 rounded-full",
+                      i < level1SlotsRemaining
+                        ? "bg-purple-400"
+                        : "bg-muted-foreground/30"
+                    )}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+          {isCurrentTurn && (
+            <span className="px-3 py-1 bg-primary/20 text-primary rounded-full text-sm font-medium animate-pulse">
+              Your Turn
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Health Bar */}
@@ -106,12 +153,18 @@ export function HeroDetailPanel({
       <div className="grid grid-cols-2 gap-4 mb-6">
         <div className="bg-muted/50 rounded-lg p-3 text-center">
           <Shield className="w-5 h-5 mx-auto mb-1 text-primary" />
-          <div className="text-2xl font-bold">{ac}</div>
+          <div className="text-2xl font-bold">
+            {ac}
+            {acBonus > 0 && <span className="text-xs text-blue-400 ml-1">(+{acBonus})</span>}
+          </div>
           <div className="text-xs text-muted-foreground">Armor Class</div>
         </div>
         <div className="bg-muted/50 rounded-lg p-3 text-center">
           <Swords className="w-5 h-5 mx-auto mb-1 text-primary" />
-          <div className="text-2xl font-bold">{attackBonus >= 0 ? '+' : ''}{attackBonus}</div>
+          <div className="text-2xl font-bold">
+            {attackBonus >= 0 ? '+' : ''}{attackBonus}
+            {attackBonusEffect > 0 && <span className="text-xs text-blue-400 ml-1">(+{attackBonusEffect})</span>}
+          </div>
           <div className="text-xs text-muted-foreground">To Hit ({attackStat})</div>
         </div>
       </div>
@@ -127,6 +180,26 @@ export function HeroDetailPanel({
           </div>
         ))}
       </div>
+
+      {/* Active Effects */}
+      {hero.activeEffects.length > 0 && (
+        <div className="mb-4">
+          <div className="flex flex-wrap gap-1">
+            {hero.activeEffects.map(effect => (
+              <span
+                key={effect.id}
+                className="text-xs px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400"
+              >
+                {effect.type === 'ac_bonus' && `+${effect.value} AC`}
+                {effect.type === 'attack_bonus' && `+${effect.value} hit`}
+                {effect.type === 'taunt' && 'Taunting'}
+                {effect.type === 'grant_advantage' && 'Vulnerable'}
+                <span className="opacity-60 ml-1">({effect.duration}r)</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Equipment */}
       <div className="space-y-3 mb-6 flex-1">
@@ -165,25 +238,81 @@ export function HeroDetailPanel({
         </div>
       </div>
 
-      {/* Attack Actions - only show if it's this hero's turn */}
-      {isCurrentTurn && validTargets.length > 0 && (
+      {/* Actions - only show if it's this hero's turn */}
+      {isCurrentTurn && (
         <div className="border-t border-border pt-4">
-          <p className="text-sm text-muted-foreground mb-2">Select target to attack:</p>
-          <div className="flex flex-wrap gap-2">
-            {validTargets.map(target => (
-              <Button
-                key={target.id}
-                variant="destructive"
-                size="sm"
-                onClick={() => onAttack(target.id)}
-                disabled={disabled}
-                className="flex items-center gap-2"
-              >
-                <Swords className="w-4 h-4" />
-                <span>{target.name}</span>
-              </Button>
-            ))}
-          </div>
+          {isCaster ? (
+            <Tabs defaultValue="attack" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-4">
+                <TabsTrigger value="attack" className="flex items-center gap-2">
+                  <Swords className="w-4 h-4" />
+                  Attack
+                </TabsTrigger>
+                <TabsTrigger value="spells" className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4" />
+                  Spells ({level1SlotsRemaining})
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="attack">
+                {validTargets.length > 0 ? (
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">Select target to attack:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {validTargets.map(target => (
+                        <Button
+                          key={target.id}
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => onAttack(target.id)}
+                          disabled={disabled}
+                          className="flex items-center gap-2"
+                        >
+                          <Swords className="w-4 h-4" />
+                          <span>{target.name}</span>
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No valid targets.</p>
+                )}
+              </TabsContent>
+              
+              <TabsContent value="spells">
+                <SpellPanel
+                  hero={hero}
+                  spellSlotsUsed={spellSlotsUsed}
+                  validEnemyTargets={validTargets}
+                  validAllyTargets={validAllyTargets}
+                  participantsActedThisRound={participantsActedThisRound}
+                  onCastSpell={onCastSpell}
+                  disabled={disabled}
+                />
+              </TabsContent>
+            </Tabs>
+          ) : (
+            validTargets.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">Select target to attack:</p>
+                <div className="flex flex-wrap gap-2">
+                  {validTargets.map(target => (
+                    <Button
+                      key={target.id}
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => onAttack(target.id)}
+                      disabled={disabled}
+                      className="flex items-center gap-2"
+                    >
+                      <Swords className="w-4 h-4" />
+                      <span>{target.name}</span>
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )
+          )}
         </div>
       )}
     </div>

@@ -374,6 +374,282 @@ export function useCombat({
     setCombatState(newState);
   }, [combatState, currentParticipant, checkCombatEnd, advanceToNextTurn]);
 
+  // Roll dice helper
+  const rollDice = useCallback((diceNotation: string): number => {
+    const match = diceNotation.match(/(\d+)d(\d+)/);
+    if (!match) return 1;
+    const count = parseInt(match[1]);
+    const sides = parseInt(match[2]);
+    let total = 0;
+    for (let i = 0; i < count; i++) {
+      total += Math.floor(Math.random() * sides) + 1;
+    }
+    return total;
+  }, []);
+
+  // Execute spell casting
+  const executeSpell = useCallback((spellId: string, targetId?: string) => {
+    if (!combatState || !currentParticipant || currentParticipant.type !== 'hero') return;
+    
+    const character = currentParticipant.characterRef;
+    if (!character) return;
+
+    const spell = getSpellById(spellId);
+    if (!spell) return;
+
+    // Check spell slots
+    const slotsUsed = combatState.spellSlotUsage[character.id];
+    const slotKey = `level${spell.level}` as keyof typeof slotsUsed;
+    const maxSlots = character.spellSlots[slotKey].max;
+    
+    if (slotsUsed[slotKey] >= maxSlots) {
+      return; // No slots available
+    }
+
+    let newLog = [...combatState.log];
+    let updatedParticipants = [...combatState.participants];
+    let newSpellSlotUsage = { ...combatState.spellSlotUsage };
+    let newSongOfWoeHits = { ...combatState.songOfWoeHits };
+    let newTurnOrder = [...combatState.turnOrder];
+
+    // Use spell slot
+    newSpellSlotUsage[character.id] = {
+      ...newSpellSlotUsage[character.id],
+      [slotKey]: newSpellSlotUsage[character.id][slotKey] + 1
+    };
+
+    const spellMod = getModifier(character.attributes[spell.modifierStat]);
+    const target = targetId ? updatedParticipants.find(p => p.id === targetId) : null;
+
+    // Process spell effects
+    for (const effect of spell.effects) {
+      if (effect.type === 'damage' && target) {
+        // Roll to hit
+        const attackRoll = rollWithModifier(spellMod);
+        const targetAC = target.enemyRef ? 10 + getModifier(target.enemyRef.attributes.dexterity) : 10;
+
+        if (attackRoll.isCritical || (!attackRoll.isCriticalFail && attackRoll.total >= targetAC)) {
+          const baseDamage = rollDice(effect.damageDice || '1d4');
+          const damage = attackRoll.isCritical ? baseDamage * 2 : baseDamage;
+          
+          newLog.push(createLogEntry(
+            combatState.round,
+            currentParticipant.name,
+            `casts ${spell.name}! Rolls ${attackRoll.total} vs AC ${targetAC}. ${attackRoll.isCritical ? 'CRITICAL! ' : ''}Deals ${damage} ${effect.damageType} damage to ${target.name}!`,
+            attackRoll.isCritical ? 'critical' : 'spell',
+            damage
+          ));
+
+          updatedParticipants = updatedParticipants.map(p => {
+            if (p.id === targetId) {
+              const newHealth = Math.max(0, p.health - damage);
+              const stillAlive = newHealth > 0;
+              if (!stillAlive) {
+                newLog.push(createLogEntry(combatState.round, target.name, 'has been defeated!', 'death'));
+              }
+              return { ...p, health: newHealth, isAlive: stillAlive };
+            }
+            return p;
+          });
+
+          // Handle debuffs on hit (like Shocking Grasp, Guiding Bolt)
+          if (effect.debuffType === 'move_to_end_initiative' || spell.effects.some(e => e.debuffType === 'move_to_end_initiative')) {
+            // Move enemy to end of initiative
+            const targetIndex = newTurnOrder.indexOf(targetId!);
+            if (targetIndex !== -1 && targetIndex !== newTurnOrder.length - 1) {
+              newTurnOrder = newTurnOrder.filter(id => id !== targetId);
+              newTurnOrder.push(targetId!);
+              newLog.push(createLogEntry(combatState.round, target.name, 'is stunned and moves to end of initiative!', 'debuff'));
+            }
+          }
+
+          if (spell.effects.some(e => e.debuffType === 'grant_advantage')) {
+            updatedParticipants = updatedParticipants.map(p => {
+              if (p.id === targetId) {
+                return {
+                  ...p,
+                  activeEffects: [...p.activeEffects, {
+                    id: `advantage-${Date.now()}`,
+                    type: 'grant_advantage' as const,
+                    duration: 1,
+                    sourceId: currentParticipant.id
+                  }]
+                };
+              }
+              return p;
+            });
+            newLog.push(createLogEntry(combatState.round, 'System', `Next attack against ${target.name} has advantage!`, 'buff'));
+          }
+        } else {
+          newLog.push(createLogEntry(
+            combatState.round,
+            currentParticipant.name,
+            `casts ${spell.name} at ${target.name}. Rolls ${attackRoll.total} vs AC ${targetAC}. ${attackRoll.isCriticalFail ? 'Critical miss!' : 'Miss!'}`,
+            'miss'
+          ));
+        }
+      }
+
+      if (effect.type === 'heal' && target) {
+        const healAmount = rollDice(effect.healDice || '1d4') + (effect.addModifier ? getModifier(character.attributes[effect.addModifier]) : 0);
+        const actualHeal = Math.min(healAmount, target.maxHealth - target.health);
+        
+        updatedParticipants = updatedParticipants.map(p => {
+          if (p.id === targetId) {
+            return { ...p, health: Math.min(p.maxHealth, p.health + actualHeal) };
+          }
+          return p;
+        });
+
+        newLog.push(createLogEntry(
+          combatState.round,
+          currentParticipant.name,
+          `casts ${spell.name} on ${target.name}, restoring ${actualHeal} HP!`,
+          'heal',
+          undefined,
+          actualHeal
+        ));
+      }
+
+      if (effect.type === 'buff') {
+        const buffTarget = spell.targetType === 'self' ? currentParticipant : target;
+        if (buffTarget) {
+          updatedParticipants = updatedParticipants.map(p => {
+            if (p.id === buffTarget.id) {
+              return {
+                ...p,
+                activeEffects: [...p.activeEffects, {
+                  id: `${effect.buffType}-${Date.now()}`,
+                  type: effect.buffType!,
+                  value: effect.buffValue,
+                  duration: effect.duration || 1,
+                  sourceId: currentParticipant.id
+                }]
+              };
+            }
+            return p;
+          });
+
+          const buffDesc = effect.buffType === 'ac_bonus' ? `+${effect.buffValue} AC` :
+                          effect.buffType === 'attack_bonus' ? `+${effect.buffValue} to hit` : 'buff';
+          newLog.push(createLogEntry(
+            combatState.round,
+            currentParticipant.name,
+            `casts ${spell.name}! ${buffTarget.name} gains ${buffDesc} for ${effect.duration} round(s)!`,
+            'buff'
+          ));
+        }
+      }
+
+      if (effect.type === 'special') {
+        if (effect.special === 'song_of_woe' && target) {
+          const hitKey = `${currentParticipant.id}-${targetId}`;
+          const hitCount = newSongOfWoeHits[hitKey] || 0;
+          const damageDice = SONG_OF_WOE_PROGRESSION[Math.min(hitCount, SONG_OF_WOE_PROGRESSION.length - 1)];
+          
+          const attackRoll = rollWithModifier(spellMod);
+          const targetAC = target.enemyRef ? 10 + getModifier(target.enemyRef.attributes.dexterity) : 10;
+
+          if (attackRoll.isCritical || (!attackRoll.isCriticalFail && attackRoll.total >= targetAC)) {
+            const damage = rollDice(damageDice);
+            newSongOfWoeHits[hitKey] = hitCount + 1;
+            
+            newLog.push(createLogEntry(
+              combatState.round,
+              currentParticipant.name,
+              `sings Song of Woe (hit #${hitCount + 1})! Rolls ${attackRoll.total} vs AC ${targetAC}. Deals ${damage} psychic damage (${damageDice})!`,
+              'spell',
+              damage
+            ));
+
+            updatedParticipants = updatedParticipants.map(p => {
+              if (p.id === targetId) {
+                const newHealth = Math.max(0, p.health - damage);
+                const stillAlive = newHealth > 0;
+                if (!stillAlive) {
+                  newLog.push(createLogEntry(combatState.round, target.name, 'has been defeated!', 'death'));
+                }
+                return { ...p, health: newHealth, isAlive: stillAlive };
+              }
+              return p;
+            });
+          } else {
+            newLog.push(createLogEntry(
+              combatState.round,
+              currentParticipant.name,
+              `sings Song of Woe at ${target.name}. Rolls ${attackRoll.total} vs AC ${targetAC}. Miss!`,
+              'miss'
+            ));
+          }
+        }
+
+        if (effect.special === 'inspire' && target) {
+          // Move target's turn to immediately after current turn
+          const currentIndex = combatState.currentTurnIndex;
+          const targetIndex = newTurnOrder.indexOf(targetId!);
+          
+          if (targetIndex !== -1 && targetIndex > currentIndex) {
+            newTurnOrder = newTurnOrder.filter(id => id !== targetId);
+            newTurnOrder.splice(currentIndex + 1, 0, targetId!);
+            newLog.push(createLogEntry(
+              combatState.round,
+              currentParticipant.name,
+              `inspires ${target.name}! They will act next!`,
+              'buff'
+            ));
+          }
+        }
+
+        if (effect.special === 'elegant_distraction' && target) {
+          // Add taunt effect to target
+          updatedParticipants = updatedParticipants.map(p => {
+            if (p.id === targetId) {
+              return {
+                ...p,
+                activeEffects: [...p.activeEffects, {
+                  id: `taunt-${Date.now()}`,
+                  type: 'taunt' as const,
+                  duration: 1,
+                  sourceId: currentParticipant.id
+                }]
+              };
+            }
+            return p;
+          });
+          newLog.push(createLogEntry(
+            combatState.round,
+            currentParticipant.name,
+            `performs an elegant distraction! ${target.name} will be targeted by the next enemy attack!`,
+            'buff'
+          ));
+        }
+      }
+    }
+
+    let newState: CombatState = {
+      ...combatState,
+      participants: updatedParticipants,
+      log: newLog,
+      spellSlotUsage: newSpellSlotUsage,
+      songOfWoeHits: newSongOfWoeHits,
+      turnOrder: newTurnOrder
+    };
+
+    newState = checkCombatEnd(newState);
+    
+    if (newState.phase === 'combat') {
+      newState = advanceToNextTurn(newState);
+    }
+
+    setCombatState(newState);
+  }, [combatState, currentParticipant, checkCombatEnd, advanceToNextTurn, rollDice]);
+
+  // Get valid ally targets for spells
+  const getValidAllyTargets = useCallback(() => {
+    if (!combatState) return [];
+    return getLivingParticipants(combatState.participants).filter(p => p.type === 'hero');
+  }, [combatState]);
+
   // End combat and report results
   const endCombat = useCallback(() => {
     if (!combatState) return;
@@ -398,8 +674,10 @@ export function useCombat({
     isHeroTurn,
     initializeCombat,
     executeHeroAttack,
+    executeSpell,
     executeEnemyTurn,
     getValidTargets,
+    getValidAllyTargets,
     endCombat
   };
 }
