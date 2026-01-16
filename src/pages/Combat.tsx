@@ -1,15 +1,14 @@
-import { useEffect, useCallback } from 'react';
-import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { useEffect, useCallback, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Character, Quest } from '@/types/game';
 import { useCombat } from '@/hooks/useCombat';
 import { InitiativeTracker } from '@/components/combat/InitiativeTracker';
 import { CombatLog } from '@/components/combat/CombatLog';
-import { CombatActions } from '@/components/combat/CombatActions';
-import { EnemyDisplay } from '@/components/combat/EnemyDisplay';
-import { PartyDisplay } from '@/components/combat/PartyDisplay';
 import { CombatEndScreen } from '@/components/combat/CombatEndScreen';
-import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { PartyList } from '@/components/combat/PartyList';
+import { HeroDetailPanel } from '@/components/combat/HeroDetailPanel';
+import { EnemyDetailPanel } from '@/components/combat/EnemyDetailPanel';
+import { Loader2 } from 'lucide-react';
 
 interface TestCombatConfig {
   heroIds: string[];
@@ -42,7 +41,9 @@ export function CombatPage({
 }: CombatPageProps) {
   const navigate = useNavigate();
   const { questId } = useParams<{ questId: string }>();
-  const location = useLocation();
+
+  // Track which hero is selected for viewing (defaults to current turn hero)
+  const [selectedHeroId, setSelectedHeroId] = useState<string | undefined>();
 
   // Check if this is a test combat
   const isTestCombat = questId === 'test-combat' && testCombatConfig;
@@ -65,7 +66,6 @@ export function CombatPage({
     deadHeroes: string[]
   ) => {
     if (isTestCombat) {
-      // For test combat, don't apply permanent consequences
       return;
     }
     
@@ -102,12 +102,19 @@ export function CombatPage({
     }
   }, [partyMembers, combatState, initializeCombat]);
 
+  // Auto-select current turn hero when turn changes
+  useEffect(() => {
+    if (currentParticipant?.type === 'hero') {
+      setSelectedHeroId(currentParticipant.id);
+    }
+  }, [currentParticipant]);
+
   // Auto-execute enemy turns with a delay
   useEffect(() => {
     if (combatState?.phase === 'combat' && !isHeroTurn && currentParticipant?.isAlive) {
       const timer = setTimeout(() => {
         executeEnemyTurn();
-      }, 1500); // 1.5 second delay for readability
+      }, 1500);
       
       return () => clearTimeout(timer);
     }
@@ -115,29 +122,34 @@ export function CombatPage({
 
   if (!quest && !isTestCombat) {
     return (
-      <div className="p-6 text-center">
+      <div className="fixed inset-0 bg-background flex items-center justify-center">
         <p className="text-muted-foreground">Quest not found</p>
-        <Button variant="outline" onClick={() => navigate('/')}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Return to Quests
-        </Button>
       </div>
     );
   }
 
   if (!combatState) {
     return (
-      <div className="p-6 text-center">
-        <p className="text-muted-foreground">Initializing combat...</p>
+      <div className="fixed inset-0 bg-background flex items-center justify-center">
+        <div className="flex items-center gap-3">
+          <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          <p className="text-muted-foreground">Initializing combat...</p>
+        </div>
       </div>
     );
   }
 
   const heroParticipants = combatState.participants.filter(p => p.type === 'hero');
   const enemyParticipants = combatState.participants.filter(p => p.type === 'enemy');
+  
+  // Get the selected hero for display
+  const selectedHero = heroParticipants.find(h => h.id === selectedHeroId) || heroParticipants[0];
+  
+  // Get the first alive enemy for display
+  const displayedEnemy = enemyParticipants.find(e => e.isAlive) || enemyParticipants[0];
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="fixed inset-0 bg-background flex flex-col">
       {/* Initiative Tracker - always visible at top */}
       <InitiativeTracker
         participants={combatState.participants}
@@ -147,33 +159,42 @@ export function CombatPage({
       />
 
       {/* Main combat area */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 p-4 overflow-hidden">
-        {/* Left column: Party */}
-        <div className="space-y-4">
-          <PartyDisplay 
+      <div className="flex-1 grid grid-cols-[240px_1fr_1fr_320px] gap-4 p-4 overflow-hidden">
+        {/* Left column: Party List */}
+        <div className="h-full overflow-hidden">
+          <PartyList
             heroes={heroParticipants}
             currentTurnId={currentParticipant?.id}
+            selectedHeroId={selectedHeroId}
+            onSelectHero={setSelectedHeroId}
           />
         </div>
 
-        {/* Center column: Enemy & Actions */}
-        <div className="space-y-4">
-          <EnemyDisplay 
-            enemies={enemyParticipants}
-            currentTurnId={currentParticipant?.id}
-          />
-          
-          <CombatActions
-            currentParticipant={currentParticipant}
-            isHeroTurn={isHeroTurn}
-            validTargets={getValidTargets()}
-            onAttack={executeHeroAttack}
-            disabled={combatState.phase !== 'combat'}
-          />
+        {/* Left-center: Selected Hero Details */}
+        <div className="h-full overflow-y-auto">
+          {selectedHero && (
+            <HeroDetailPanel
+              hero={selectedHero}
+              isCurrentTurn={selectedHero.id === currentParticipant?.id && isHeroTurn}
+              validTargets={selectedHero.id === currentParticipant?.id ? getValidTargets() : []}
+              onAttack={executeHeroAttack}
+              disabled={combatState.phase !== 'combat' || selectedHero.id !== currentParticipant?.id}
+            />
+          )}
+        </div>
+
+        {/* Right-center: Enemy Details */}
+        <div className="h-full overflow-y-auto">
+          {displayedEnemy && (
+            <EnemyDetailPanel
+              enemy={displayedEnemy}
+              isCurrentTurn={displayedEnemy.id === currentParticipant?.id}
+            />
+          )}
         </div>
 
         {/* Right column: Combat Log */}
-        <div className="h-full min-h-[300px]">
+        <div className="h-full overflow-hidden">
           <CombatLog log={combatState.log} />
         </div>
       </div>

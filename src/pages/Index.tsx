@@ -51,94 +51,104 @@ const Index = () => {
   if (!gameState) return null;
 
   return (
-    <GameLayout guild={gameState.guild} onAdvanceDay={advanceDay}>
-      <Routes>
-        <Route 
-          path="/" 
-          element={
-            <QuestsPage
-              characters={gameState.characters}
-              quests={gameState.quests}
-              activeQuests={gameState.activeQuests}
-              completedQuests={gameState.completedQuests}
-              log={gameState.log}
-            />
-          } 
-        />
-        <Route 
-          path="/quest/:questId" 
-          element={
-            <QuestDetailPage
-              quests={gameState.quests}
-              characters={gameState.characters}
-              activeQuests={gameState.activeQuests}
-              onAssignCharacter={assignCharacterToQuest}
-              onRemoveCharacter={removeCharacterFromQuest}
-              onStartQuest={startQuest}
-            />
-          } 
-        />
-        <Route 
-          path="/guild" 
-          element={<GuildPage characters={gameState.characters} />} 
-        />
-        <Route 
-          path="/hero/:heroId" 
-          element={
-            <HeroDetailPage 
-              characters={gameState.characters} 
-              guildInventory={gameState.guildInventory}
-              onEquipItem={equipItemToCharacter}
-              onUnequipItem={unequipItem}
-            />
-          } 
-        />
-        <Route 
-          path="/recruitment" 
-          element={
-            <RecruitmentPage 
-              characters={gameState.characters}
-              gold={gameState.guild.gold}
-              recruits={recruits}
-              onRecruit={recruitCharacter}
-              onRefreshRecruits={refreshRecruits}
-            />
-          } 
-        />
-        <Route 
-          path="/shop" 
-          element={
-            <ShopPage 
-              gold={gameState.guild.gold}
-              shopInventory={shopInventory}
-              shopLevel={gameState.guild.shopLevel}
-              lastRestockDay={gameState.guild.lastRestockDay}
-              currentDay={gameState.guild.day}
-              onPurchase={purchaseItem}
-            />
-          } 
-        />
-        <Route 
-          path="/combat/:questId" 
-          element={
-            <CombatPage
-              characters={gameState.characters}
-              quests={gameState.quests}
-              activeQuests={gameState.activeQuests}
-              testCombatConfig={testCombatConfig}
-              onCombatComplete={completeCombat}
-              onTestCombatEnd={() => setTestCombatConfig(null)}
-            />
-          } 
-        />
-      </Routes>
-      
-      {/* Test Combat Button */}
-      <TestCombatDialog 
-        characters={gameState.characters}
-        onStartTestCombat={handleStartTestCombat}
+    <Routes>
+      {/* Combat route - full screen, outside GameLayout */}
+      <Route 
+        path="/combat/:questId" 
+        element={
+          <CombatPage
+            characters={gameState.characters}
+            quests={gameState.quests}
+            activeQuests={gameState.activeQuests}
+            testCombatConfig={testCombatConfig}
+            onCombatComplete={completeCombat}
+            onTestCombatEnd={() => setTestCombatConfig(null)}
+          />
+        } 
       />
-    </GameLayout>
+      
+      {/* All other routes wrapped in GameLayout */}
+      <Route 
+        path="/*" 
+        element={
+          <GameLayout guild={gameState.guild} onAdvanceDay={advanceDay}>
+            <Routes>
+              <Route 
+                path="/" 
+                element={
+                  <QuestsPage
+                    characters={gameState.characters}
+                    quests={gameState.quests}
+                    activeQuests={gameState.activeQuests}
+                    completedQuests={gameState.completedQuests}
+                    log={gameState.log}
+                  />
+                } 
+              />
+              <Route 
+                path="/quest/:questId" 
+                element={
+                  <QuestDetailPage
+                    quests={gameState.quests}
+                    characters={gameState.characters}
+                    activeQuests={gameState.activeQuests}
+                    onAssignCharacter={assignCharacterToQuest}
+                    onRemoveCharacter={removeCharacterFromQuest}
+                    onStartQuest={startQuest}
+                  />
+                } 
+              />
+              <Route 
+                path="/guild" 
+                element={<GuildPage characters={gameState.characters} />} 
+              />
+              <Route 
+                path="/hero/:heroId" 
+                element={
+                  <HeroDetailPage 
+                    characters={gameState.characters} 
+                    guildInventory={gameState.guildInventory}
+                    onEquipItem={equipItemToCharacter}
+                    onUnequipItem={unequipItem}
+                  />
+                } 
+              />
+              <Route 
+                path="/recruitment" 
+                element={
+                  <RecruitmentPage 
+                    characters={gameState.characters}
+                    gold={gameState.guild.gold}
+                    recruits={recruits}
+                    onRecruit={recruitCharacter}
+                    onRefreshRecruits={refreshRecruits}
+                  />
+                } 
+              />
+              <Route 
+                path="/shop" 
+                element={
+                  <ShopPage 
+                    gold={gameState.guild.gold}
+                    shopInventory={shopInventory}
+                    shopLevel={gameState.guild.shopLevel}
+                    lastRestockDay={gameState.guild.lastRestockDay}
+                    currentDay={gameState.guild.day}
+                    onPurchase={purchaseItem}
+                  />
+                } 
+              />
+            </Routes>
+            
+            {/* Test Combat Button */}
+            <TestCombatDialog 
+              characters={gameState.characters}
+              onStartTestCombat={handleStartTestCombat}
+            />
+          </GameLayout>
+        }
+      />
+    </Routes>
   );
 };
 
