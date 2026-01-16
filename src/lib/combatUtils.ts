@@ -109,39 +109,62 @@ export function getEquippedArmor(character: Character): import('@/types/game').I
   return character.inventory.find(item => item.type === 'armor' && item.equipped);
 }
 
-// Calculate Armor Class
-// Unarmored: 10 + DEX modifier
-// Armored: Will be based on armor type (to be implemented with armor items)
+// Get equipped shield (if any)
+export function getEquippedShield(character: Character): import('@/types/game').InventoryItem | undefined {
+  return character.inventory.find(item => item.type === 'shield' && item.equipped);
+}
+
+// Calculate Armor Class based on equipped armor
 export function calculateAC(attributes: Attributes, character?: Character): number {
   const dexMod = getModifier(attributes.dexterity);
   
-  // If character provided, check for equipped armor
-  if (character && hasArmorEquipped(character)) {
-    // TODO: Calculate based on armor type when armor items are added
-    // For now, equipped armor gives base 12 + (dex mod / 2, rounded down)
-    return 12 + Math.floor(dexMod / 2);
+  if (!character) {
+    // For enemies without character reference
+    return 10 + dexMod;
   }
-  
-  // Unarmored: 10 + DEX modifier
-  return 10 + dexMod;
+
+  let baseAC = 10 + dexMod; // Unarmored default
+
+  const armor = getEquippedArmor(character);
+  if (armor && armor.baseAC) {
+    if (armor.addsDexterity) {
+      const effectiveDexMod = armor.maxDexBonus !== undefined 
+        ? Math.min(dexMod, armor.maxDexBonus) 
+        : dexMod;
+      baseAC = armor.baseAC + effectiveDexMod;
+    } else {
+      baseAC = armor.baseAC;
+    }
+  }
+
+  // Add shield bonus
+  const shield = getEquippedShield(character);
+  if (shield && shield.acBonus) {
+    baseAC += shield.acBonus;
+  }
+
+  return baseAC;
 }
 
-// Calculate attack bonus
-// Unarmed: STR modifier + level bonus
-// Armed: Based on weapon type (to be implemented)
-export function getAttackBonus(character: Character): number {
-  const levelBonus = Math.floor(character.level / 2);
-  
-  if (hasWeaponEquipped(character)) {
-    // TODO: Calculate based on weapon type when weapon items are added
-    // For now, use class primary stat
-    const primaryStat = getPrimaryAttackStat(character.class);
-    const statValue = character.attributes[primaryStat];
-    return getModifier(statValue) + levelBonus;
+// Get weapon stat modifier based on damage type
+function getWeaponStatModifier(weapon: import('@/types/game').InventoryItem, character: Character): number {
+  const strMod = getModifier(character.attributes.strength);
+  const dexMod = getModifier(character.attributes.dexterity);
+  const intMod = getModifier(character.attributes.intelligence);
+  const wisMod = getModifier(character.attributes.wisdom);
+
+  switch (weapon.damageType) {
+    case 'strength':
+      return strMod;
+    case 'dexterity':
+      return dexMod;
+    case 'strength_or_dexterity':
+      return Math.max(strMod, dexMod);
+    case 'intelligence_or_wisdom':
+      return Math.max(intMod, wisMod);
+    default:
+      return strMod;
   }
-  
-  // Unarmed: STR modifier + level bonus
-  return getModifier(character.attributes.strength) + levelBonus;
 }
 
 // Roll a d4 (1-4)
@@ -149,23 +172,54 @@ export function rollD4(): number {
   return Math.floor(Math.random() * 4) + 1;
 }
 
+// Parse dice notation (e.g., "1d6" returns {count: 1, sides: 6})
+function parseDice(diceNotation: string): { count: number; sides: number } {
+  const match = diceNotation.match(/(\d+)d(\d+)/);
+  if (!match) return { count: 1, sides: 4 };
+  return { count: parseInt(match[1]), sides: parseInt(match[2]) };
+}
+
+// Roll damage dice
+function rollDamageDice(diceNotation: string): number {
+  const { count, sides } = parseDice(diceNotation);
+  let total = 0;
+  for (let i = 0; i < count; i++) {
+    total += Math.floor(Math.random() * sides) + 1;
+  }
+  return total;
+}
+
+// Calculate attack bonus
+// Unarmed: STR modifier + level bonus
+// Armed: Based on weapon damage type
+export function getAttackBonus(character: Character): number {
+  const levelBonus = Math.floor(character.level / 2);
+  const weapon = getEquippedWeapon(character);
+  
+  if (weapon) {
+    return getWeaponStatModifier(weapon, character) + levelBonus;
+  }
+  
+  // Unarmed: STR modifier + level bonus
+  return getModifier(character.attributes.strength) + levelBonus;
+}
+
 // Calculate base damage
 // Unarmed: 1d4 + STR modifier
-// Armed: Based on weapon type (to be implemented)
+// Armed: Based on weapon dice and damage type
 export function calculateBaseDamage(character: Character): number {
-  if (hasWeaponEquipped(character)) {
-    // TODO: Calculate based on weapon type when weapon items are added
-    // For now, use 1d8 + primary stat modifier
-    const primaryStat = getPrimaryAttackStat(character.class);
-    const statValue = character.attributes[primaryStat];
-    const dieRoll = Math.floor(Math.random() * 8) + 1; // 1d8
-    return dieRoll + getModifier(statValue);
+  const weapon = getEquippedWeapon(character);
+  
+  if (weapon && weapon.damageDice) {
+    const dieRoll = rollDamageDice(weapon.damageDice);
+    const modifier = getWeaponStatModifier(weapon, character);
+    return Math.max(1, dieRoll + modifier);
   }
   
   // Unarmed: 1d4 + STR modifier
   const strMod = getModifier(character.attributes.strength);
   const dieRoll = rollD4();
-  return dieRoll + strMod;
+  return Math.max(1, dieRoll + strMod);
 }
 
 // Perform an attack roll

@@ -1,7 +1,8 @@
 import { useState, useCallback } from 'react';
-import { GameState, Character, Quest, GameLogEntry } from '@/types/game';
+import { GameState, Character, Quest, GameLogEntry, InventoryItem } from '@/types/game';
 import { initialQuests } from '@/data/initialData';
 import { generateCharacter } from '@/lib/characterGenerator';
+import { ShopItem, getAvailableShopItems } from '@/data/shopItems';
 
 export type GamePhase = 'selection' | 'playing';
 
@@ -9,14 +10,31 @@ export function useGameState() {
   const [phase, setPhase] = useState<GamePhase>('selection');
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [recruits, setRecruits] = useState<Character[]>([]);
+  const [shopInventory, setShopInventory] = useState<ShopItem[]>([]);
+
+  const generateShopInventory = useCallback((shopLevel: number) => {
+    const availableItems = getAvailableShopItems(shopLevel);
+    // Stock 2-3 of each item randomly
+    const inventory: ShopItem[] = [];
+    availableItems.forEach(item => {
+      const stock = Math.floor(Math.random() * 2) + 2; // 2-3 of each
+      for (let i = 0; i < stock; i++) {
+        inventory.push({ ...item, id: `${item.id}-${Date.now()}-${i}` });
+      }
+    });
+    setShopInventory(inventory);
+  }, []);
 
   const startGame = useCallback((selectedCharacters: Character[]) => {
+    const initialShopLevel = 1;
     setGameState({
       guild: {
         name: 'The Silver Ravens',
         gold: 500,
         reputation: 25,
-        day: 1
+        day: 1,
+        shopLevel: initialShopLevel,
+        lastRestockDay: 1
       },
       characters: selectedCharacters,
       quests: initialQuests.map(q => ({ ...q, assignedParty: [], status: 'available' as const, progress: 0 })),
@@ -26,8 +44,9 @@ export function useGameState() {
         { id: '1', day: 1, message: 'The guild hall opens its doors. Your legend begins.', type: 'info' }
       ]
     });
+    generateShopInventory(initialShopLevel);
     setPhase('playing');
-  }, []);
+  }, [generateShopInventory]);
 
   const addLogEntry = useCallback((message: string, type: GameLogEntry['type'] = 'info') => {
     setGameState(prev => ({
@@ -43,6 +62,7 @@ export function useGameState() {
       ]
     }));
   }, []);
+
 
   const assignCharacterToQuest = useCallback((questId: string, characterId: string) => {
     setGameState(prev => {
@@ -234,22 +254,41 @@ export function useGameState() {
         };
       });
 
+      // Check if shop needs restocking (every 7 days)
+      const newDay = prev.guild.day + 1;
+      const daysSinceRestock = newDay - prev.guild.lastRestockDay;
+      const shouldRestock = daysSinceRestock >= 7;
+
       return {
         ...prev,
         guild: {
           ...prev.guild,
-          day: prev.guild.day + 1,
+          day: newDay,
           gold: newGold,
-          reputation: newReputation
+          reputation: newReputation,
+          lastRestockDay: shouldRestock ? newDay : prev.guild.lastRestockDay
         },
         characters: newCharacters,
         activeQuests: updatedActiveQuests.filter(q => !completedQuestIds.includes(q.id)),
         quests: prev.quests.filter(q => !completedQuestIds.includes(q.id)),
         completedQuests: newCompletedQuests,
-        log: newLog
+        log: shouldRestock 
+          ? [...newLog, { id: `restock-${Date.now()}`, day: newDay, message: 'The shop has restocked with new items!', type: 'info' as const }]
+          : newLog
       };
     });
-  }, []);
+    
+    // Handle shop restock outside setState
+    setGameState(current => {
+      if (!current) return current;
+      const daysSinceRestock = current.guild.day - current.guild.lastRestockDay;
+      if (daysSinceRestock === 0) {
+        // Just restocked, regenerate inventory
+        generateShopInventory(current.guild.shopLevel);
+      }
+      return current;
+    });
+  }, [generateShopInventory]);
 
   const getLowestLivingLevel = useCallback(() => {
     if (!gameState) return 1;
@@ -353,10 +392,41 @@ export function useGameState() {
     });
   }, []);
 
+  const purchaseItem = useCallback((item: ShopItem) => {
+    setGameState(prev => {
+      if (!prev || prev.guild.gold < item.price) return prev;
+
+      return {
+        ...prev,
+        guild: {
+          ...prev.guild,
+          gold: prev.guild.gold - item.price
+        },
+        log: [
+          ...prev.log,
+          {
+            id: Date.now().toString(),
+            day: prev.guild.day,
+            message: `Purchased ${item.name} for ${item.price} gold.`,
+            type: 'info' as const
+          }
+        ]
+      };
+    });
+
+    // Remove item from shop inventory
+    setShopInventory(prev => {
+      const index = prev.findIndex(i => i.id === item.id);
+      if (index === -1) return prev;
+      return [...prev.slice(0, index), ...prev.slice(index + 1)];
+    });
+  }, []);
+
   return {
     phase,
     gameState,
     recruits,
+    shopInventory,
     startGame,
     assignCharacterToQuest,
     removeCharacterFromQuest,
@@ -365,6 +435,7 @@ export function useGameState() {
     addLogEntry,
     refreshRecruits,
     recruitCharacter,
-    completeCombat
+    completeCombat,
+    purchaseItem
   };
 }

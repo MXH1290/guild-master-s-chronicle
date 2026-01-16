@@ -9,6 +9,7 @@ import { GuildPage } from './Guild';
 import { HeroDetailPage } from './HeroDetail';
 import { RecruitmentPage } from './Recruitment';
 import { CombatPage } from './Combat';
+import ShopPage from './Shop';
 import { TestCombatDialog } from '@/components/combat/TestCombatDialog';
 
 const Index = () => {
@@ -22,6 +23,7 @@ const Index = () => {
     phase,
     gameState, 
     recruits,
+    shopInventory,
     startGame,
     assignCharacterToQuest, 
     removeCharacterFromQuest, 
@@ -29,7 +31,8 @@ const Index = () => {
     advanceDay,
     refreshRecruits,
     recruitCharacter,
-    completeCombat
+    completeCombat,
+    purchaseItem
   } = useGameState();
 
   const handleStartTestCombat = (heroIds: string[], enemyKey: string) => {
@@ -90,6 +93,19 @@ const Index = () => {
               recruits={recruits}
               onRecruit={recruitCharacter}
               onRefreshRecruits={refreshRecruits}
+            />
+          } 
+        />
+        <Route 
+          path="/shop" 
+          element={
+            <ShopPage 
+              gold={gameState.guild.gold}
+              shopInventory={shopInventory}
+              shopLevel={gameState.guild.shopLevel}
+              lastRestockDay={gameState.guild.lastRestockDay}
+              currentDay={gameState.guild.day}
+              onPurchase={purchaseItem}
             />
           } 
         />
