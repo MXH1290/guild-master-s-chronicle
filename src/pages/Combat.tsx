@@ -11,10 +11,16 @@ import { CombatEndScreen } from '@/components/combat/CombatEndScreen';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 
+interface TestCombatConfig {
+  heroIds: string[];
+  enemyKey: string;
+}
+
 interface CombatPageProps {
   characters: Character[];
   quests: Quest[];
   activeQuests: Quest[];
+  testCombatConfig?: TestCombatConfig | null;
   onCombatComplete: (
     questId: string,
     result: 'victory' | 'defeat',
@@ -23,38 +29,53 @@ interface CombatPageProps {
     xpReward: number,
     goldReward: number
   ) => void;
+  onTestCombatEnd?: () => void;
 }
 
 export function CombatPage({ 
   characters, 
   quests, 
   activeQuests,
-  onCombatComplete 
+  testCombatConfig,
+  onCombatComplete,
+  onTestCombatEnd
 }: CombatPageProps) {
   const navigate = useNavigate();
   const { questId } = useParams<{ questId: string }>();
   const location = useLocation();
 
-  // Find the quest
-  const quest = [...quests, ...activeQuests].find(q => q.id === questId);
+  // Check if this is a test combat
+  const isTestCombat = questId === 'test-combat' && testCombatConfig;
+
+  // Find the quest (only for real quests)
+  const quest = isTestCombat 
+    ? null 
+    : [...quests, ...activeQuests].find(q => q.id === questId);
   
   // Get party members
-  const partyMembers = quest 
-    ? characters.filter(c => quest.assignedParty.includes(c.id))
-    : [];
+  const partyMembers = isTestCombat
+    ? characters.filter(c => testCombatConfig.heroIds.includes(c.id))
+    : quest 
+      ? characters.filter(c => quest.assignedParty.includes(c.id))
+      : [];
 
   const handleCombatEnd = useCallback((
     result: 'victory' | 'defeat',
     survivors: string[],
     deadHeroes: string[]
   ) => {
+    if (isTestCombat) {
+      // For test combat, don't apply permanent consequences
+      return;
+    }
+    
     if (!quest) return;
     
     const xpReward = result === 'victory' ? quest.rewards.experience : 0;
     const goldReward = result === 'victory' ? quest.rewards.gold : 0;
     
     onCombatComplete(quest.id, result, survivors, deadHeroes, xpReward, goldReward);
-  }, [quest, onCombatComplete]);
+  }, [quest, onCombatComplete, isTestCombat]);
 
   const {
     combatState,
@@ -68,8 +89,9 @@ export function CombatPage({
   } = useCombat({
     heroes: partyMembers,
     questId: questId || '',
-    questName: quest?.name || 'Unknown Quest',
+    questName: isTestCombat ? 'Test Arena' : (quest?.name || 'Unknown Quest'),
     questDifficulty: quest?.difficulty || 'medium',
+    enemyKey: isTestCombat ? testCombatConfig.enemyKey : undefined,
     onCombatEnd: handleCombatEnd
   });
 
@@ -91,7 +113,7 @@ export function CombatPage({
     }
   }, [combatState, isHeroTurn, currentParticipant, executeEnemyTurn]);
 
-  if (!quest) {
+  if (!quest && !isTestCombat) {
     return (
       <div className="p-6 text-center">
         <p className="text-muted-foreground">Quest not found</p>
@@ -160,8 +182,13 @@ export function CombatPage({
       {(combatState.phase === 'victory' || combatState.phase === 'defeat') && (
         <CombatEndScreen 
           combatState={combatState}
+          isTestCombat={!!isTestCombat}
           onContinue={() => {
-            endCombat();
+            if (isTestCombat) {
+              onTestCombatEnd?.();
+            } else {
+              endCombat();
+            }
             navigate('/');
           }}
         />

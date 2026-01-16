@@ -19,13 +19,14 @@ import {
   getCurrentTurnParticipant,
   getLivingParticipants
 } from '@/lib/combatUtils';
-import { generateQuestBoss } from '@/data/enemies';
+import { generateQuestBoss, enemyTemplates } from '@/data/enemies';
 
 interface UseCombatProps {
   heroes: Character[];
   questId: string;
   questName: string;
   questDifficulty: string;
+  enemyKey?: string; // For test combat - use specific enemy template
   onCombatEnd: (result: 'victory' | 'defeat', survivors: string[], deadHeroes: string[]) => void;
 }
 
@@ -34,13 +35,24 @@ export function useCombat({
   questId, 
   questName, 
   questDifficulty,
+  enemyKey,
   onCombatEnd 
 }: UseCombatProps) {
   const [combatState, setCombatState] = useState<CombatState | null>(null);
 
   // Initialize combat
   const initializeCombat = useCallback(() => {
-    const boss = generateQuestBoss(questName, questDifficulty);
+    // Use specific enemy template if provided (test combat), otherwise generate boss
+    let boss: Enemy;
+    if (enemyKey && enemyTemplates[enemyKey]) {
+      const template = enemyTemplates[enemyKey];
+      boss = {
+        id: `enemy-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        ...template
+      };
+    } else {
+      boss = generateQuestBoss(questName, questDifficulty);
+    }
     
     // Create participants
     const heroParticipants = heroes.map(h => createHeroParticipant(h));

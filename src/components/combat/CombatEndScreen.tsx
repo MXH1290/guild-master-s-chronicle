@@ -5,10 +5,11 @@ import { Trophy, Skull, Coins, Star, ArrowRight } from 'lucide-react';
 
 interface CombatEndScreenProps {
   combatState: CombatState;
+  isTestCombat?: boolean;
   onContinue: () => void;
 }
 
-export function CombatEndScreen({ combatState, onContinue }: CombatEndScreenProps) {
+export function CombatEndScreen({ combatState, isTestCombat = false, onContinue }: CombatEndScreenProps) {
   const isVictory = combatState.phase === 'victory';
   
   const survivors = combatState.participants.filter(p => p.type === 'hero' && p.isAlive);
@@ -50,8 +51,8 @@ export function CombatEndScreen({ combatState, onContinue }: CombatEndScreenProp
           </p>
         </div>
 
-        {/* Rewards (victory only) */}
-        {isVictory && (
+        {/* Rewards (victory only, not for test combat) */}
+        {isVictory && !isTestCombat && (
           <div className="bg-muted/30 rounded-lg p-4 space-y-3">
             <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
               Rewards
@@ -66,6 +67,15 @@ export function CombatEndScreen({ combatState, onContinue }: CombatEndScreenProp
                 <span className="font-semibold">{totalGold} Gold</span>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Test combat notice */}
+        {isTestCombat && (
+          <div className="bg-muted/30 rounded-lg p-4">
+            <p className="text-sm text-muted-foreground">
+              This was a test combat. No rewards or consequences have been applied.
+            </p>
           </div>
         )}
 
@@ -105,9 +115,11 @@ export function CombatEndScreen({ combatState, onContinue }: CombatEndScreenProp
                 </span>
               ))}
             </div>
-            <p className="text-xs text-muted-foreground">
-              Heroes who fall in battle and are not healed before combat ends are lost forever.
-            </p>
+            {!isTestCombat && (
+              <p className="text-xs text-muted-foreground">
+                Heroes who fall in battle and are not healed before combat ends are lost forever.
+              </p>
+            )}
           </div>
         )}
 

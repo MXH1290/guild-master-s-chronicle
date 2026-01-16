@@ -1,4 +1,5 @@
-import { Routes, Route } from 'react-router-dom';
+import { useState } from 'react';
+import { Routes, Route, useNavigate } from 'react-router-dom';
 import { useGameState } from '@/hooks/useGameState';
 import { CharacterSelection } from '@/components/game/CharacterSelection';
 import { GameLayout } from '@/components/game/GameLayout';
@@ -8,8 +9,15 @@ import { GuildPage } from './Guild';
 import { HeroDetailPage } from './HeroDetail';
 import { RecruitmentPage } from './Recruitment';
 import { CombatPage } from './Combat';
+import { TestCombatDialog } from '@/components/combat/TestCombatDialog';
 
 const Index = () => {
+  const navigate = useNavigate();
+  const [testCombatConfig, setTestCombatConfig] = useState<{
+    heroIds: string[];
+    enemyKey: string;
+  } | null>(null);
+  
   const { 
     phase,
     gameState, 
@@ -23,6 +31,11 @@ const Index = () => {
     recruitCharacter,
     completeCombat
   } = useGameState();
+
+  const handleStartTestCombat = (heroIds: string[], enemyKey: string) => {
+    setTestCombatConfig({ heroIds, enemyKey });
+    navigate('/combat/test-combat');
+  };
 
   // Show character selection screen at game start
   if (phase === 'selection') {
@@ -87,11 +100,19 @@ const Index = () => {
               characters={gameState.characters}
               quests={gameState.quests}
               activeQuests={gameState.activeQuests}
+              testCombatConfig={testCombatConfig}
               onCombatComplete={completeCombat}
+              onTestCombatEnd={() => setTestCombatConfig(null)}
             />
           } 
         />
       </Routes>
+      
+      {/* Test Combat Button */}
+      <TestCombatDialog 
+        characters={gameState.characters}
+        onStartTestCombat={handleStartTestCombat}
+      />
     </GameLayout>
   );
 };
